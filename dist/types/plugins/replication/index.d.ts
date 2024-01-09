@@ -20,6 +20,7 @@ export declare class RxReplicationState<RxDocType, CheckpointType> {
     readonly live?: boolean | undefined;
     retryTime?: number | undefined;
     autoStart?: boolean | undefined;
+    readonly waitBeforePersist?: (() => Promise<any>) | undefined;
     readonly subs: Subscription[];
     readonly subjects: {
         received: Subject<RxDocumentData<RxDocType>>;
@@ -39,7 +40,7 @@ export declare class RxReplicationState<RxDocType, CheckpointType> {
      * The identifier, used to flag revisions
      * and to identify which documents state came from the remote.
      */
-    replicationIdentifier: string, collection: RxCollection<RxDocType>, deletedField: string, pull?: ReplicationPullOptions<RxDocType, CheckpointType> | undefined, push?: ReplicationPushOptions<RxDocType> | undefined, live?: boolean | undefined, retryTime?: number | undefined, autoStart?: boolean | undefined);
+    replicationIdentifier: string, collection: RxCollection<RxDocType>, deletedField: string, pull?: ReplicationPullOptions<RxDocType, CheckpointType> | undefined, push?: ReplicationPushOptions<RxDocType> | undefined, live?: boolean | undefined, retryTime?: number | undefined, autoStart?: boolean | undefined, waitBeforePersist?: (() => Promise<any>) | undefined);
     private callOnStart;
     internalReplicationState?: RxStorageInstanceReplicationState<RxDocType>;
     metaInstance?: RxStorageInstance<RxStorageReplicationMeta<RxDocType, CheckpointType>, any, {}, any>;
@@ -62,5 +63,5 @@ export declare class RxReplicationState<RxDocType, CheckpointType> {
     emitEvent(ev: RxReplicationPullStreamItem<RxDocType, CheckpointType>): void;
     cancel(): Promise<any>;
 }
-export declare function replicateRxCollection<RxDocType, CheckpointType>({ replicationIdentifier, collection, deletedField, pull, push, live, retryTime, waitForLeadership, autoStart, }: ReplicationOptions<RxDocType, CheckpointType>): RxReplicationState<RxDocType, CheckpointType>;
+export declare function replicateRxCollection<RxDocType, CheckpointType>({ replicationIdentifier, collection, deletedField, pull, push, live, retryTime, waitForLeadership, autoStart, waitBeforePersist, }: ReplicationOptions<RxDocType, CheckpointType>): RxReplicationState<RxDocType, CheckpointType>;
 export declare function startReplicationOnLeaderShip(waitForLeadership: boolean, replicationState: RxReplicationState<any, any>): Promise<void>;

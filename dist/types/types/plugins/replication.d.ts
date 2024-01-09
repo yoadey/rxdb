@@ -154,4 +154,16 @@ export type ReplicationOptions<RxDocType, CheckpointType> = {
      * @default true
      */
     autoStart?: boolean;
+    /**
+     * When a write happens to the database,
+     * normally the replication will directly try to sync the changes with the replication.
+     *
+     * For many use cases, it is better to await the next event loop tick
+     * or to wait until the RxDatabase is idle or requestIdleCallback() calls
+     * to ensure the CPU is idle.
+     *
+     * But: The longer you wait here, the higher is the risk of losing writes when
+     * the replication is destroyed unexpected.
+     */
+    waitBeforePersist?: () => Promise<any>;
 };

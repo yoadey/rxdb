@@ -23,7 +23,7 @@ export var RxReplicationState = /*#__PURE__*/function () {
    * The identifier, used to flag revisions
    * and to identify which documents state came from the remote.
    */
-  replicationIdentifier, collection, deletedField, pull, push, live, retryTime, autoStart) {
+  replicationIdentifier, collection, deletedField, pull, push, live, retryTime, autoStart, waitBeforePersist) {
     this.subs = [];
     this.subjects = {
       received: new Subject(),
@@ -51,6 +51,7 @@ export var RxReplicationState = /*#__PURE__*/function () {
     this.live = live;
     this.retryTime = retryTime;
     this.autoStart = autoStart;
+    this.waitBeforePersist = waitBeforePersist;
     var replicationStates = getFromMapOrCreate(REPLICATION_STATE_BY_COLLECTION, collection, () => []);
     replicationStates.push(this);
 
@@ -106,6 +107,7 @@ export var RxReplicationState = /*#__PURE__*/function () {
       hashFunction: database.hashFunction,
       identifier: 'rxdbreplication' + this.replicationIdentifier,
       conflictHandler: this.collection.conflictHandler,
+      waitBeforePersist: this.waitBeforePersist,
       replicationHandler: {
         masterChangeStream$: this.remoteEvents$.asObservable().pipe(filter(_v => !!this.pull), mergeMap(async ev => {
           if (ev === 'RESYNC') {
@@ -331,7 +333,8 @@ export function replicateRxCollection({
   live = true,
   retryTime = 1000 * 5,
   waitForLeadership = true,
-  autoStart = true
+  autoStart = true,
+  waitBeforePersist
 }) {
   addRxPlugin(RxDBLeaderElectionPlugin);
 
@@ -348,7 +351,7 @@ export function replicateRxCollection({
       }
     });
   }
-  var replicationState = new RxReplicationState(replicationIdentifier, collection, deletedField, pull, push, live, retryTime, autoStart);
+  var replicationState = new RxReplicationState(replicationIdentifier, collection, deletedField, pull, push, live, retryTime, autoStart, waitBeforePersist);
   startReplicationOnLeaderShip(waitForLeadership, replicationState);
   return replicationState;
 }

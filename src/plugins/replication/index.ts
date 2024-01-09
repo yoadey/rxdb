@@ -98,6 +98,7 @@ export class RxReplicationState<RxDocType, CheckpointType> {
         public readonly live?: boolean,
         public retryTime?: number,
         public autoStart?: boolean,
+        public readonly waitBeforePersist?: () => Promise<any>,
     ) {
         const replicationStates = getFromMapOrCreate(
             REPLICATION_STATE_BY_COLLECTION,
@@ -179,6 +180,7 @@ export class RxReplicationState<RxDocType, CheckpointType> {
             hashFunction: database.hashFunction,
             identifier: 'rxdbreplication' + this.replicationIdentifier,
             conflictHandler: this.collection.conflictHandler,
+            waitBeforePersist: this.waitBeforePersist,
             replicationHandler: {
                 masterChangeStream$: this.remoteEvents$.asObservable().pipe(
                     filter(_v => !!this.pull),
@@ -466,6 +468,7 @@ export function replicateRxCollection<RxDocType, CheckpointType>(
         retryTime = 1000 * 5,
         waitForLeadership = true,
         autoStart = true,
+        waitBeforePersist,
     }: ReplicationOptions<RxDocType, CheckpointType>
 ): RxReplicationState<RxDocType, CheckpointType> {
     addRxPlugin(RxDBLeaderElectionPlugin);
@@ -492,7 +495,8 @@ export function replicateRxCollection<RxDocType, CheckpointType>(
         push,
         live,
         retryTime,
-        autoStart
+        autoStart,
+        waitBeforePersist
     );
 
 

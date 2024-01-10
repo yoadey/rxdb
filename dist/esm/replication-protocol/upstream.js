@@ -32,6 +32,7 @@ export async function startReplicationUpstream(state) {
   // used to detect which tasks etc can in it at which order.
   var timer = 0;
   var initialSyncStartTime = -1;
+  var taskPlanned = false;
   var openTasks = [];
   var persistenceQueue = PROMISE_RESOLVE_FALSE;
   var nonPersistedFromMaster = {
@@ -47,13 +48,20 @@ export async function startReplicationUpstream(state) {
       task: eventBulk,
       time: timer++
     });
-    if (state.input.waitBeforePersist) {
-      return state.input.waitBeforePersist().then(() => processTasks());
-    } else {
-      return processTasks();
-    }
+    return scheduleProcessTasks();
   });
   firstValueFrom(state.events.canceled.pipe(filter(canceled => !!canceled))).then(() => sub.unsubscribe());
+  function scheduleProcessTasks() {
+    if (!taskPlanned) {
+      // No need to start another task if there is one already scheduled
+      taskPlanned = true;
+      if (state.input.waitBeforePersist) {
+        return state.input.waitBeforePersist().then(() => processTasks());
+      } else {
+        return processTasks();
+      }
+    }
+  }
   async function upstreamInitialSync() {
     state.stats.up.upstreamInitialSync = state.stats.up.upstreamInitialSync + 1;
     if (state.events.canceled.getValue()) {
@@ -106,6 +114,7 @@ export async function startReplicationUpstream(state) {
    * Takes all open tasks an processes them at once.
    */
   function processTasks() {
+    taskPlanned = false;
     if (state.events.canceled.getValue() || openTasks.length === 0) {
       state.events.active.up.next(false);
       return;
@@ -138,7 +147,7 @@ export async function startReplicationUpstream(state) {
         if (openTasks.length === 0) {
           state.events.active.up.next(false);
         } else {
-          processTasks();
+          scheduleProcessTasks();
         }
       });
     });

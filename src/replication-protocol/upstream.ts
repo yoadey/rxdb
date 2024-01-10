@@ -70,6 +70,7 @@ export async function startReplicationUpstream<RxDocType, CheckpointType>(
     // used to detect which tasks etc can in it at which order.
     let timer = 0;
     let initialSyncStartTime = -1;
+    let taskPlanned: boolean = false;
 
     type Task = EventBulk<RxStorageChangeEvent<RxDocType>, any>;
     type TaskWithTime = {
@@ -97,12 +98,7 @@ export async function startReplicationUpstream<RxDocType, CheckpointType>(
                 task: eventBulk,
                 time: timer++
             });
-            if (state.input.waitBeforePersist) {
-                return state.input.waitBeforePersist()
-                    .then(() => processTasks());
-            } else {
-                return processTasks();
-            }
+            return scheduleProcessTasks();
         });
     firstValueFrom(
         state.events.canceled.pipe(
@@ -110,6 +106,18 @@ export async function startReplicationUpstream<RxDocType, CheckpointType>(
         )
     ).then(() => sub.unsubscribe());
 
+    function scheduleProcessTasks() {
+        if (!taskPlanned) {
+            // No need to start another task if there is one already scheduled
+            taskPlanned = true;
+            if (state.input.waitBeforePersist) {
+                return state.input.waitBeforePersist()
+                    .then(() => processTasks());
+            } else {
+                return processTasks();
+            }
+        }
+    }
 
     async function upstreamInitialSync() {
         state.stats.up.upstreamInitialSync = state.stats.up.upstreamInitialSync + 1;
@@ -177,6 +185,7 @@ export async function startReplicationUpstream<RxDocType, CheckpointType>(
      * Takes all open tasks an processes them at once.
      */
     function processTasks() {
+        taskPlanned = false;
         if (
             state.events.canceled.getValue() ||
             openTasks.length === 0
@@ -219,7 +228,7 @@ export async function startReplicationUpstream<RxDocType, CheckpointType>(
                 if (openTasks.length === 0) {
                     state.events.active.up.next(false);
                 } else {
-                    processTasks();
+                    scheduleProcessTasks();
                 }
             });
         });

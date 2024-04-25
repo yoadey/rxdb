@@ -17,13 +17,15 @@ The main reason to use this is to improve initial page load and query/write time
 ## Cons
 
 - It does not support attachments.
-- When the JavaScript process is killed ungracefully like when the browser crashes or the power of the PC is terminated, it might happen that some memory writes are not persisted to the parent storage.
+- When the JavaScript process is killed ungracefully like when the browser crashes or the power of the PC is terminated, it might happen that some memory writes are not persisted to the parent storage. This can be prevented with the `awaitWritePersistence` flag.
 - This can only be used if all data fits into the memory of the JavaScript process. This is normally not a problem because a browser has much memory these days and plain json document data is not that big.
 - Because it has to await an initial replication from the parent storage into the memory, initial page load time can increase when much data is already stored. This is likely not a problem when you store less then `10k` documents.
 - The memory-synced storage itself does not support replication and migration. Instead you have to replicate the underlying parent storage.
 
 
-**NOTICE:** The `memory-synced` plugin is part of [👑 RxDB premium](/premium). It is not part of the default RxDB module.
+:::note Premium
+The `memory-synced` plugin is part of [RxDB Premium 👑](/premium). It is not part of the default RxDB module.
+:::
 
 ## Usage
 
@@ -60,7 +62,7 @@ const db = await createRxDatabase({
 
 ## Options
 
-Some options can be provided to fine tune the performance.
+Some options can be provided to fine tune the performance and behavior.
 
 ```ts
 
@@ -84,10 +86,22 @@ const storage = getMemorySyncedRxStorage({
      * By default, the parent storage will be created without indexes for a faster page load.
      * Indexes are not needed because the queries will anyway run on the memory storage.
      * You can disable this behavior by setting keepIndexesOnParent to true.
+     * If you use the same parent storage for multiple RxDatabase instances where one is not
+     * a asynced-memory storage, you will get the error: 'schema not equal to existing storage'
+     * if you do not set keepIndexesOnParent to true.
      * 
      * (optional)
      */
     keepIndexesOnParent: true,
+
+    /**
+     * If set to true, all write operations will resolve AFTER the writes
+     * have been persisted from the memory to the parentStorage.
+     * This ensures writes are not lost even if the JavaScript process exits
+     * between memory writes and the persistence interval.
+     * default=false
+     */
+    awaitWritePersistence: true,
 
     /**
      * After a write, await until the return value of this method resolves
@@ -101,7 +115,6 @@ const storage = getMemorySyncedRxStorage({
      */
     waitBeforePersist: () => requestIdlePromise();
 });
-
 ```
 
 
@@ -118,13 +131,11 @@ The memory-synced storage itself does not support replication and migration. Ins
 For example when you use it on top of an [IndexedDB storage](./rx-storage-indexeddb.md), you have to run replication on that storage instead by creating a different [RxDatabase](./rx-database.md).
 
 ```js
-const parentStorage = getRxStorageIndexedDB({
-    indexedDB,
-    IDBKeyRange
-});
+const parentStorage = getRxStorageIndexedDB();
 
 const memorySyncedStorage = getMemorySyncedRxStorage({
-    storage: parentStorage
+    storage: parentStorage,
+    keepIndexesOnParent: true
 });
 
 const databaseName = 'mydata';
@@ -148,7 +159,7 @@ replicateRxCollection({
 
 
 /**
- * Creat an equal memory-synced database with the same name+collections
+ * Create an equal memory-synced database with the same name+collections
  * and use it for writes and queries.
  */
 const memoryDatabase = await createRxDatabase({
@@ -156,6 +167,4 @@ const memoryDatabase = await createRxDatabase({
     storage: memorySyncedStorage
 });
 await memoryDatabase.addCollections(/* ... */);
-
-
 ```

@@ -9,6 +9,140 @@
 
 <!-- RELEASE BELOW -->
 
+### 15.18.2 (25 April 2024)
+
+- Memory RxStorage: Add `categorizedByWriteInput` property that can be used by other plugins.
+
+### 15.18.1 (18 April 2024)
+
+- FIX CouchDB replication error `Cannot read properties of undefined (reading '_attachments')`
+
+### 15.18.0 (17 April 2024)
+
+- FIX memory-synced storage must be able to query encrypted fields on the in-memory side.
+- RxServer: `updatedAt` must be `lwt` [#61](https://github.com/pubkey/rxdb-server/pull/61)
+- RxServer: Fix using `parseFloat` instead of `parseInt` [#5883](https://github.com/pubkey/rxdb/issues/5883)
+
+### 15.17.0 (8 April 2024)
+
+- ADD `RxReplicationState.remove()` to delete the metadata of a specific replication.
+- FIX IndexedDB RxStorage: Rerun database creation when IndexedDB database was closed by [safari bug](https://bugs.webkit.org/show_bug.cgi?id=197050)
+- FIX vite bundling error with WebRTC replication [#5841](https://github.com/pubkey/rxdb/issues/5841)
+- ADD replication-webrtc: allow passing config to simple-peer [#5838](https://github.com/pubkey/rxdb/pull/5838)
+
+### 15.16.0 (28 March 2024)
+
+- Update dexie.js to version `4.0.1`
+- Deprecate LokiJS RxStorage
+
+### 15.15.1 (27 March 2024)
+
+### 15.15.0 (27 March 2024)
+
+- ADD `PreactSignalsRxReactivityFactory` to use [custom reactivity](https://rxdb.info/reactivity.html) with **preact signals** instead of observables.
+- ADD `VueRxReactivityFactory` to use [custom reactivity](https://rxdb.info/reactivity.html) with **vue shallow refs** instead of observables.
+- ADD(reactivity) pass reference to `RxDatabase` to `fromObservable()`
+
+### 15.14.0 (25 March 2024)
+
+- ADD [Fastify adapter to RxServer](https://rxdb.info/rx-server.html)
+- ADD [Koa adapter to RxServer](https://rxdb.info/rx-server.html)
+
+### 15.13.4 (24 March 2024)
+
+### 15.13.3 (24 March 2024)
+
+### 15.13.2 (24 March 2024)
+
+### 15.13.1 (24 March 2024)
+
+### 15.13.0 (24 March 2024)
+
+- REFACTOR RxServer package. (Includes breaking changes of the beta RxServer!)
+
+### 15.12.0 (16 March 2024)
+
+- [SQLite RxStorage](https://rxdb.info/rx-storage-sqlite.html) add support to use Webassembly SQLite in the browser
+- FIX(Lokisjs RxStorage) always use slice() for applying offset and limit [#5757](https://github.com/pubkey/rxdb/pull/5757)
+- FIX randomly failing lokijs and denokv test [#5765](https://github.com/pubkey/rxdb/pull/5765)
+
+### 15.11.1 (10 March 2024)
+
+### 15.11.0 (10 March 2024)
+
+- ADD [RxState](https://rxdb.info/rx-state.html): A convenient state library to store, fetch and observe complex json data that is persisted into RxDB.
+- ADD automatically extend the RxDocument type so it knows about the `RxDocument.myField$` observables.
+- ADD check to ensure `Infinity` is not used when defining index sizes in the `RxJsonSchema`
+- FIX do not automatically set `multiInstance: false` for shared worker storage databases.
+
+### 15.10.0 (27 February 2024)
+
+- IMPROVE [OPFS RxStorage](https://rxdb.info/rx-storage-opfs.html) performance.
+- ADD `usesRxDatabaseInWorker` option to the [OPFS RxStorage](https://rxdb.info/rx-storage-opfs.html).
+- ADD `getRxStorageOPFSMainThread()` to run OPFS from the main thread instead of a worker for less latency.
+
+### 15.9.1 (21 February 2024)
+
+- FIX creating two databases with the same name but different storage must work.
+
+### 15.9.0 (21 February 2024)
+
+- ADD `awaitWritePersistence` option to memory-synced storage.
+
+### 15.8.1 (14 February 2024)
+
+- FIX [#5624](https://github.com/pubkey/rxdb/issues/5624) Maximum call stack size exceeded during encryptString
+
+### 15.8.0 (10 February 2024)
+
+- ADD support for [custom reactivity factories](https://rxdb.info/reactivity.html) like angular signals or vue template refs.
+
+### 15.7.0 (7 February 2024)
+
+- FIX key-compression broken on keys with brackets [#5605](https://github.com/pubkey/rxdb/issues/5605)
+
+### 15.6.2 (7 February 2024)
+
+- FIX using encryption plugins inside of worker was broken
+- FIX(premium) missing type `SharedWorker`
+
+### 15.6.1 (1 February 2024)
+
+- FIX(lokijs) `$in` operator not working on arrays.
+
+### 15.6.0 (1 February 2024)
+
+- FIX firestore replication not working with schema validation [#5572](https://github.com/pubkey/rxdb/issues/5572)
+- FIX Replication observation mode ignored when push handler is waiting [#5571](https://github.com/pubkey/rxdb/issues/5571)
+- FIX migration from v14 -> v15 is broken when IndexedDB is used inside of worker. [5565](https://github.com/pubkey/rxdb/issues/5565)
+
+### 15.5.0 (30 January 2024)
+
+- ADD [RxServer](https://rxdb.info/rx-server.html) 🎉
+- ADD Optionally supress dev mode Warning [#5556](https://github.com/pubkey/rxdb/issues/5556)
+
+### 15.4.3 (28 January 2024)
+
+### 15.4.2 (24 January 2024)
+
+- ADD(worker storage) support for directly imported `Worker` and `SharedWorker` functions as `workerInput`.
+
+### 15.4.1 (24 January 2024)
+
+- ADD export test utilities so other projects can use them
+
+### 15.4.0 (22 January 2024)
+
+- ADD helpers for the new server plugin
+- ADD `RxJsonSchema.internalIndexes`
+- ADD(opfs-storage) allow to set `jsonPositionSize` to increase the maxium database size to be bigger than 100 MegaByte.
+
+### 15.3.0 (15 January 2024)
+
+- ADD tutorial on [how to start a HTTP replication with a custom server](https://rxdb.info/replication-http.html)
+- FIX `.count()` broken on key-compression plugin [#5492](https://github.com/pubkey/rxdb/pull/5492)
+- UPDATE dexie to version `4.0.1-beta.6` [#5469](https://github.com/pubkey/rxdb/pull/5469)
+
 ### 15.2.0 (5 January 2024)
 
 - FIX(dexie.js) migration from v14 to v15 not working.

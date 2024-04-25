@@ -1,6 +1,7 @@
 ---
-title: Alternatives for realtime offline-first JavaScript applications
+title: Alternatives for realtime offline-first JavaScript applications and local databases
 slug: alternatives.html
+description: Explore real-time, offline-first JS alternatives to RxDB. Compare Firebase, Meteor, AWS, CouchDB, and more for robust, seamless web/mobile app development.
 ---
 
 
@@ -18,8 +19,7 @@ This list should be seen as an **entrypoint** for your personal evaluation of wh
 
 --------------------------------------------------------------------------------
 
-<!-- 
-  IMPORTANT:
+<!--
   DO NOT ADD ANY LINKS TO THE PROJECTS.
   THEY WOULD HAVE TO BE UPDATED EVERY FEW MONTHS AND I DO NOT WANT TO MAINTAIN THEM.
 -->
@@ -72,7 +72,7 @@ Compared to RxDB, Minimongo has no concept of revisions or conflict handling, wh
 </p>
 
 WatermelonDB is a reactive & asynchronous JavaScript database. While originally made for React and React Native, it can also be used with other JavaScript frameworks. The main goal of WatermelonDB is **performance** within an application with lots of data.
-In React Native, WatermelonDB uses the provided SQLite database. In a browser, LokiJS can be used to store and query data.
+In React Native, WatermelonDB uses the provided SQLite database. Also there is an Expo plugin for WatermelonDB. In a browser, WatermelonDB uses the LokiJS in-memory database to store and query data. WatermelonDB is one of the rare projects that support both Flow and Typescript at the same time.
 
 
 ### AWS Amplify
@@ -186,7 +186,7 @@ Absurd-sql is a project that implements an IndexedDB-based persistence for sql.j
 
 ### NeDB
 
-NeDB was a embedded persistent or in-memory database for Node.js, nw.js, Electron and browsers.
+NeDB was a embedded persistent or in-memory database for Node.js, nw.js, [Electron](./electron-database.md) and browsers.
 It is document-oriented and had the same query syntax as MongoDB. 
 Like LokiJS it has persistence adapters for IndexedDB etc. to persist the database state on the disc.
 The last commit to NeDB was in **2016**.
@@ -218,6 +218,11 @@ The Apollo GraphQL platform is made to transfer data between a server to UI appl
 
 While it is has different caching features for offline usage, compared to RxDB it is not fully offline first because caching alone does not mean your application is fully usable when the user is offline.
 
+
+### Replicache 
+
+Replicache is a client-side sync framework for building realtime, collaborative, local-first web apps. It claims to work with most backend stacks. In contrast to other local first tools, replicache does not work like a local database. Instead it runs on so called `mutators` that unify behavior on the client and server side. So instead of implementing and calling REST routes on both sides of your stack, you will implement mutators that define a specific delta behavior based on the input data. To observe data in replicache, there are `subscriptions` that notify your frontend application about changes to the state.
+Replicache can be used in most frontend technologies like browsers, react/remix, vercle and react native. While replicache can be installed and used from npm, the replicache source code is not open source and the replicache github repo does not allow you to inspect or debug it. Still you can use replicache for in non-commercial projects, or for companies with < $200k revenue (ARR) and < $500k in funding.
 
 # Read further
 

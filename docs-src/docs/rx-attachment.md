@@ -12,7 +12,7 @@ Using attachments instead of adding the data to the normal document, ensures tha
 - You can store string, binary files, images and whatever you want side by side with your documents.
 - Deleted documents automatically loose all their attachments data.
 - Not all replication plugins support the replication of attachments.
-- Attachments can be stored encrypted.
+- Attachments can be stored [encrypted](./encryption.md).
 
 Internally, attachments in RxDB are stored and handled similar to how [CouchDB, PouchDB](https://pouchdb.com/guides/attachments.html#how-attachments-are-stored) does it.
 
@@ -121,7 +121,9 @@ The length of the data of the attachment as `number`.
 
 The hash of the attachments data as `string`.
 
-NOTICE: The digest is NOT calculated by RxDB, instead it is calculated by the RxStorage. The only guarantee is that the digest will change when the attachments data changes.
+:::note
+The digest is NOT calculated by RxDB, instead it is calculated by the RxStorage. The only guarantee is that the digest will change when the attachments data changes.
+:::
 
 ### rev
 
@@ -176,7 +178,7 @@ const storageWithAttachmentsCompression = wrappedAttachmentsCompressionStorage({
     storage: getRxStorageIndexedDB()
 });
 
-const db = await createRxDatabase<RxStylechaseCollections>({
+const db = await createRxDatabase({
     name: 'mydatabase',
     storage: storageWithAttachmentsCompression
 });

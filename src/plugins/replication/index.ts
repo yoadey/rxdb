@@ -22,6 +22,7 @@ import type {
     RxCollection,
     RxDocumentData,
     RxError,
+    RxJsonSchema,
     RxReplicationPullStreamItem,
     RxReplicationWriteToMasterRow,
     RxStorageInstance,
@@ -39,7 +40,8 @@ import {
     getFromMapOrCreate,
     PROMISE_RESOLVE_FALSE,
     PROMISE_RESOLVE_TRUE,
-    toArray
+    toArray,
+    toPromise
 } from '../../plugins/utils/index.ts';
 import {
     awaitRxStorageReplicationFirstInSync,
@@ -56,7 +58,7 @@ import {
     handlePulledDocuments
 } from './replication-helper.ts';
 import {
-    addConnectedStorageToCollection
+    addConnectedStorageToCollection, removeConnectedStorageFromCollection
 } from '../../rx-database-internal-store.ts';
 import { addRxPlugin } from '../../plugin.ts';
 import { hasEncryption } from '../../rx-storage-helper.ts';
@@ -84,7 +86,12 @@ export class RxReplicationState<RxDocType, CheckpointType> {
     readonly canceled$: Observable<any> = this.subjects.canceled.asObservable();
     readonly active$: Observable<boolean> = this.subjects.active.asObservable();
 
+    readonly metaInfoPromise: Promise<{ collectionName: string, schema: RxJsonSchema<RxDocumentData<RxStorageReplicationMeta<RxDocType, any>>> }>;
+
     public startPromise: Promise<void>;
+
+    public onCancel: (() => void)[] = [];
+
     constructor(
         /**
          * The identifier, used to flag revisions
@@ -100,6 +107,20 @@ export class RxReplicationState<RxDocType, CheckpointType> {
         public autoStart?: boolean,
         public readonly waitBeforePersist?: () => Promise<any>,
     ) {
+        this.metaInfoPromise = (async () => {
+            const metaInstanceCollectionName = 'rx-replication-meta-' + await collection.database.hashFunction([
+                this.collection.name,
+                this.replicationIdentifier
+            ].join('-'));
+            const metaInstanceSchema = getRxReplicationMetaInstanceSchema(
+                this.collection.schema.jsonSchema,
+                hasEncryption(this.collection.schema.jsonSchema)
+            );
+            return {
+                collectionName: metaInstanceCollectionName,
+                schema: metaInstanceSchema
+            };
+        })();
         const replicationStates = getFromMapOrCreate(
             REPLICATION_STATE_BY_COLLECTION,
             collection,
@@ -140,30 +161,24 @@ export class RxReplicationState<RxDocType, CheckpointType> {
         const pushModifier = this.push && this.push.modifier ? this.push.modifier : DEFAULT_MODIFIER;
 
         const database = this.collection.database;
-        const metaInstanceCollectionName = 'rx-replication-meta-' + await database.hashFunction([
-            this.collection.name,
-            this.replicationIdentifier
-        ].join('-'));
-        const metaInstanceSchema = getRxReplicationMetaInstanceSchema(
-            this.collection.schema.jsonSchema,
-            hasEncryption(this.collection.schema.jsonSchema)
-        );
+
+        const metaInfo = await this.metaInfoPromise;
 
         const [metaInstance] = await Promise.all([
             this.collection.database.storage.createStorageInstance<RxStorageReplicationMeta<RxDocType, CheckpointType>>({
                 databaseName: database.name,
-                collectionName: metaInstanceCollectionName,
+                collectionName: metaInfo.collectionName,
                 databaseInstanceToken: database.token,
                 multiInstance: database.multiInstance, // TODO is this always false?
                 options: {},
-                schema: metaInstanceSchema,
+                schema: metaInfo.schema,
                 password: database.password,
                 devMode: overwritable.isDevMode()
             }),
             addConnectedStorageToCollection(
                 this.collection,
-                metaInstanceCollectionName,
-                metaInstanceSchema
+                metaInfo.collectionName,
+                metaInfo.schema
             )
         ]);
         this.metaInstance = metaInstance;
@@ -276,7 +291,7 @@ export class RxReplicationState<RxDocType, CheckpointType> {
                             return row;
                         })
                     );
-                    const useRows = useRowsOrNull.filter(arrayFilterNotEmpty);
+                    const useRows: RxReplicationWriteToMasterRow<RxDocType>[] = useRowsOrNull.filter(arrayFilterNotEmpty);
 
                     let result: WithDeleted<RxDocType>[] = null as any;
 
@@ -407,14 +422,27 @@ export class RxReplicationState<RxDocType, CheckpointType> {
         await awaitRxStorageReplicationFirstInSync(ensureNotFalsy(this.internalReplicationState));
 
         /**
-         * Often awaitInSync() is called directly after a document write,
-         * like in the unit tests.
-         * So we first have to await the idleness to ensure that all RxChangeEvents
-         * are processed already.
+         * To reduce the amount of re-renders and make testing
+         * and to make the whole behavior more predictable,
+         * we await these things multiple times.
+         * For example the state might be in sync already and at the
+         * exact same time a pull.stream$ event comes in and we want to catch
+         * that in the same call to awaitInSync() instead of resolving
+         * while actually the state is not in sync.
          */
-        await this.collection.database.requestIdlePromise();
+        let t = 2;
+        while (t > 0) {
+            t--;
 
-        await awaitRxStorageReplicationInSync(ensureNotFalsy(this.internalReplicationState));
+            /**
+             * Often awaitInSync() is called directly after a document write,
+             * like in the unit tests.
+             * So we first have to await the idleness to ensure that all RxChangeEvents
+             * are processed already.
+             */
+            await this.collection.database.requestIdlePromise();
+            await awaitRxStorageReplicationInSync(ensureNotFalsy(this.internalReplicationState));
+        }
 
         return true;
     }
@@ -431,7 +459,7 @@ export class RxReplicationState<RxDocType, CheckpointType> {
             return PROMISE_RESOLVE_FALSE;
         }
 
-        const promises: Promise<any>[] = [];
+        const promises: Promise<any>[] = this.onCancel.map(fn => toPromise(fn()));
 
         if (this.internalReplicationState) {
             await cancelRxStorageReplication(this.internalReplicationState);
@@ -453,6 +481,17 @@ export class RxReplicationState<RxDocType, CheckpointType> {
         this.subjects.sent.complete();
 
         return Promise.all(promises);
+    }
+
+    async remove() {
+        await ensureNotFalsy(this.metaInstance).remove();
+        const metaInfo = await this.metaInfoPromise;
+        await this.cancel();
+        await removeConnectedStorageFromCollection(
+            this.collection,
+            metaInfo.collectionName,
+            metaInfo.schema
+        );
     }
 }
 

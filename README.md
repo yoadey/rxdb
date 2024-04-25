@@ -2,10 +2,11 @@
 | :--: |
 | &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; [Help testing the RxDB version 15 release](https://github.com/pubkey/rxdb/issues/5155) &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; | -->
 
-
+<!--
 | Announcement                                                        |
 | :--: |
 | &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; Version **15.0.0** is now released, read the [CHANGELOG](https://rxdb.info/releases/15.0.0.html) &emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp; |
+-->
 
 
 <!--
@@ -41,13 +42,13 @@
 </p>
 
 <p align="center">
- 	  <a href="https://rxdb.info/chat.html"><img src="https://img.shields.io/discord/969553741705539624?label=discord&style=flat-square&color=5a66f6"></a>
+ 	  <a href="https://rxdb.info/chat"><img src="https://img.shields.io/discord/969553741705539624?label=discord&style=flat-square&color=5a66f6"></a>
 	  &nbsp;
     <a href="https://twitter.com/intent/follow?screen_name=rxdbjs"><img src="https://img.shields.io/badge/twitter-%40rxdbjs-1DA1F2?style=flat-square"></a>
 	  &nbsp;
     <a href="https://www.linkedin.com/company/rxdb"><img src="https://img.shields.io/badge/linkedin-%40rxdb-0e76a8?style=flat-square"></a>
     &nbsp;
-    <a href="https://rxdb.info/newsletter.html"><img src="https://img.shields.io/badge/newsletter-subscribe-e05b29?style=flat-square"></a>
+    <a href="https://rxdb.info/newsletter"><img src="https://img.shields.io/badge/newsletter-subscribe-e05b29?style=flat-square"></a>
 </p>
 
 
@@ -61,7 +62,7 @@
   RxDB (short for <b>R</b>eactive <b>D</b>ata<b>b</b>ase) is a <a href="https://rxdb.info/offline-first.html">local-first</a>, NoSQL-database for JavaScript Applications like Websites, hybrid Apps, Electron-Apps, Progressive Web Apps, Deno and <a href="https://rxdb.info/nodejs-database.html">Node.js</a>.
   Reactive means that you can not only query the current state, but <b>subscribe</b> to all state changes like the result of a query or even a single field of a document.
   This is great for UI-based <b>realtime</b> applications in a way that makes it easy to develop and also has great performance benefits but can also be used to create fast backends in Node.js.<br />
-  RxDB provides an easy to implement <a href="https://rxdb.info/replication.html">protocol</a> for realtime <b>replication</b> with your existing infrastructure or one of the plugins for <a href="https://rxdb.info/replication-graphql.html">GraphQL</a>, <a href="https://rxdb.info/replication-couchdb.html">CouchDB</a>, <a href="https://rxdb.info/replication-websocket.html">Websocket</a>, <a href="https://rxdb.info/replication-webrtc.html">WebRTC</a>, <a href="https://rxdb.info/replication-firestore.html">Firestore</a>, <a href="https://rxdb.info/replication-nats.html">NATS</a>.<br />
+  RxDB provides an easy to implement <a href="https://rxdb.info/replication.html">protocol</a> for realtime <b>replication</b> with your existing infrastructure or one of the plugins for <a href="https://rxdb.info/replication-http.html">HTTP</a>, <a href="https://rxdb.info/replication-graphql.html">GraphQL</a>, <a href="https://rxdb.info/replication-couchdb.html">CouchDB</a>, <a href="https://rxdb.info/replication-websocket.html">Websocket</a>, <a href="https://rxdb.info/replication-webrtc.html">WebRTC</a>, <a href="https://github.com/marceljuenemann/rxdb-supabase">Supabase</a>, <a href="https://rxdb.info/replication-firestore.html">Firestore</a>, <a href="https://rxdb.info/replication-nats.html">NATS</a>.<br />
   RxDB is based on a storage interface that enables you to swap out the underlying storage engine. This increases <b>code reuse</b> because you can use the same database code for different JavaScript environments by just switching out the storage settings.
 </p>
 
@@ -82,7 +83,7 @@ Use the [quickstart](https://rxdb.info/quickstart.html), read the [documentation
 </h2>
 
 RxDB provides an easy to implement, <b>battle-tested</b> <a href="https://rxdb.info/replication.html"> replication protocol</a> for realtime sync with your existing infrastructure.<br />
-There are also plugins to easily replicate with <a href="https://rxdb.info/replication-graphql.html">GraphQL</a>, <a href="https://rxdb.info/replication-couchdb.html">CouchDB</a>, <a href="https://rxdb.info/replication-websocket.html">Websocket</a>, <a href="https://rxdb.info/replication-webrtc.html">WebRTC</a>, <a href="https://rxdb.info/replication-firestore.html">Firestore</a> or <a href="https://rxdb.info/replication-nats.html">NATS</a>.
+There are also plugins to easily replicate with <a href="https://rxdb.info/replication-graphql.html">GraphQL</a>, <a href="https://rxdb.info/replication-couchdb.html">CouchDB</a>, <a href="https://rxdb.info/replication-websocket.html">Websocket</a>, <a href="https://rxdb.info/replication-webrtc.html">WebRTC</a>,<a href="https://github.com/marceljuenemann/rxdb-supabase">Supabase</a>, <a href="https://rxdb.info/replication-firestore.html">Firestore</a> or <a href="https://rxdb.info/replication-nats.html">NATS</a>.
 
 
 <h2>
@@ -104,8 +105,6 @@ No matter what kind of runtime you have, as long as it runs JavaScript, it can r
   <a href="./examples/angular">Browsers</a>
   <img height="13" src="docs-src/static/files/icons/nodejs.png" />
   <a href="./examples/node">Node.js</a>
-  <img height="13" src="docs-src/static/files/icons/electron.png" />
-  <a href="https://rxdb.info/electron-database.html">Electron</a>
   <img height="13" src="docs-src/static/files/icons/react-native.png" />
   <a href="https://rxdb.info/react-native-database.html">React Native</a>
   <img height="13" src="docs-src/static/files/icons/capacitor.svg" />
@@ -114,6 +113,8 @@ No matter what kind of runtime you have, as long as it runs JavaScript, it can r
   <a href="https://github.com/herefishyfish/rxdb-nativescript">NativeScript</a>
   <img height="13" src="docs-src/static/files/icons/flutter.svg" />
   <a href="./examples/flutter">Flutter</a>
+  or as an <img height="13" src="docs-src/static/files/icons/electron.png" />
+  <a href="https://rxdb.info/electron-database.html">Electron Database</a>
 </h4>
 
 
@@ -134,7 +135,7 @@ npm install rxdb rxjs --save
 ```javascript
 import { 
   createRxDatabase
-} from 'rxdb';
+} from 'rxdb/plugins/core';
 
 /**
  * For browsers, we use the dexie.js based storage
@@ -206,7 +207,8 @@ Continue with the [quickstart here](https://rxdb.info/quickstart.html).
   <p>
 
 RxDB implements [rxjs](https://github.com/ReactiveX/rxjs) to make your data reactive.
-This makes it easy to always show the real-time database-state in the dom without manually re-submitting your queries.</p>
+This makes it easy to always show the real-time database-state in the dom without manually re-submitting your queries.
+You can also add [custom reactiveness libraries](https://rxdb.info/reactivity.html) like signals or other state management.</p>
 
 </summary>
 
@@ -461,16 +463,15 @@ And for any other use case, there are [many more plugins and addons](https://rxd
 
 Get started now by [reading the docs](https://rxdb.info/quickstart.html) or exploring the [example-projects](./examples).
 
-
 <h2>
   <img height="16" width="16" src="./docs-src/static/files/icons/with-gradient/contribute.svg">&nbsp;&nbsp;Support and Contribute
 </h2>
 
-- [Check out how you can contribute to this project](./docs-src/contribute.md).
+- [Check out how you can contribute to this project](https://rxdb.info/contribution.html).
 - [Read this when you have found a bug](./orga/bug-checklist.md)
 - [Buy access to the premium plugins](https://rxdb.info/premium)
 - [Join us at discord to get help](https://rxdb.info/chat)
-
+- [Give Feedback (anonymous)](https://forms.gle/vGaZB7zrub1hgqDk8)
 
 <!-- 
   There are many websites that just exact-copy the readme of github projects.

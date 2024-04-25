@@ -44,6 +44,7 @@ export declare const ERROR_MESSAGES: {
     DB11: string;
     DB12: string;
     DB13: string;
+    DB14: string;
     COL1: string;
     COL2: string;
     COL3: string;
@@ -113,6 +114,7 @@ export declare const ERROR_MESSAGES: {
     RC4: string;
     RC5: string;
     RC6: string;
+    RC7: string;
     RC_PULL: string;
     RC_STREAM: string;
     RC_PUSH: string;
@@ -120,6 +122,9 @@ export declare const ERROR_MESSAGES: {
     RC_WEBRTC_PEER: string;
     RC_COUCHDB_1: string;
     RC_COUCHDB_2: string;
+    RC_OUTDATED: string;
+    RC_UNAUTHORIZED: string;
+    RC_FORBIDDEN: string;
     SC1: string;
     SC2: string;
     SC3: string;
@@ -156,6 +161,7 @@ export declare const ERROR_MESSAGES: {
     SC38: string;
     SC39: string;
     SC40: string;
+    SC41: string;
     VD1: string;
     VD2: string;
     S1: string;

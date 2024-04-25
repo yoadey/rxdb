@@ -26,7 +26,7 @@ import {
 import { getRxStorageDexie } from 'rxdb/plugins/storage-dexie';
 
 // create the new RxDatabase
-const db = await createRxDatabase<RxStylechaseCollections>({
+const db = await createRxDatabase({
     name: dbLocation,
     storage: getRxStorageDexie(),
     multiInstance: false
@@ -89,7 +89,7 @@ await migrateStorage({
 /* ... */
 ```
 
-## Disable Version Check on [👑 RxDB Premium](/premium)
+## Disable Version Check on [RxDB Premium 👑](/premium)
 
 RxDb Premium has a check in place that ensures that you do not accidentally use the wrong RxDB core and 👑 Premium version together which could break your database state. 
 This can be a problem during migrations where you have multiple versions of RxDB in use and it will throw the error `Version mismatch detected`.

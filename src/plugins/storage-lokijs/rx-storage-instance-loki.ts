@@ -7,7 +7,8 @@ import {
     now,
     ensureNotFalsy,
     isMaybeReadonlyArray,
-    getFromMapOrThrow
+    getFromMapOrThrow,
+    hasDeepProperty
 } from '../utils/index.ts';
 import { newRxError } from '../../rx-error.ts';
 import type {
@@ -224,30 +225,33 @@ export class RxStorageInstanceLoki<RxDocType> implements RxStorageInstance<
             preparedQuery.selector = transformRegexToRegExp(preparedQuery.selector);
         }
 
-        let query = localState.collection
-            .chain()
-            .find(preparedQuery.selector);
-
-        if (preparedQuery.sort) {
-            query = query.sort(getLokiSortComparator(this.schema, preparedQuery));
-        }
-
-
-
+        const query = preparedQueryOriginal.query;
+        const skip = query.skip ? query.skip : 0;
+        const limit = query.limit ? query.limit : Infinity;
+        const skipPlusLimit = skip + limit;
 
         /**
-         * Offset must be used before limit in LokiJS
-         * @link https://github.com/techfort/LokiJS/issues/570
+         * LokiJS is not able to give correct results for some
+         * operators, so we have to check all documents in that case
+         * and laster apply skip and limit manually.
+         * @link https://github.com/pubkey/rxdb/issues/5320
          */
-        if (preparedQuery.skip) {
-            query = query.offset(preparedQuery.skip);
+        let mustRunMatcher = false;
+        if (hasDeepProperty(preparedQuery.selector, '$in')) {
+            mustRunMatcher = true;
         }
 
-        if (preparedQuery.limit) {
-            query = query.limit(preparedQuery.limit);
+
+        let lokiQuery = localState.collection
+            .chain()
+            .find(mustRunMatcher ? {} : preparedQuery.selector);
+
+        if (preparedQuery.sort) {
+            lokiQuery = lokiQuery.sort(getLokiSortComparator(this.schema, preparedQuery));
         }
 
-        let foundDocuments = query.data().map((lokiDoc: any) => stripLokiKey(lokiDoc));
+
+        let foundDocuments = lokiQuery.data().map((lokiDoc: any) => stripLokiKey(lokiDoc));
 
 
         /**
@@ -261,6 +265,10 @@ export class RxStorageInstanceLoki<RxDocType> implements RxStorageInstance<
             preparedQuery as any
         );
         foundDocuments = foundDocuments.filter((d: any) => queryMatcher(d));
+
+        // always apply offset and limit like this, because
+        // sylvieQuery.offset() and sylvieQuery.limit() results were inconsistent
+        foundDocuments = foundDocuments.slice(skip, skipPlusLimit);
 
         return {
             documents: foundDocuments

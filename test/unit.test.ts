@@ -1,7 +1,6 @@
 import './unit/init.test.ts';
 import './unit/util.test.ts';
 
-
 /**
  * Helpers that
  * do not fully test RxDB but
@@ -9,6 +8,9 @@ import './unit/util.test.ts';
 */
 import './unit/custom-index.test.ts';
 import './unit/query-planner.test.ts';
+
+
+import './unit/internal-indexes.test.ts';
 
 
 /**
@@ -25,6 +27,7 @@ import './unit/rx-storage-helper.test.ts';
 import './unit/rx-storage-lokijs.test.ts';
 import './unit/rx-storage-dexie.test.ts';
 import './unit/rx-storage-remote.test.ts';
+
 
 
 import './unit/instance-of-check.test.ts';
@@ -46,6 +49,7 @@ import './unit/cache-replacement-policy.test.ts';
 import './unit/query-builder.test.ts';
 import './unit/idle-queue.test.ts';
 import './unit/conflict-handling.test.ts';
+import './unit/reactivity.test.ts';
 import './unit/reactive-collection.test.ts';
 import './unit/reactive-document.test.ts';
 import './unit/cleanup.test.ts';
@@ -56,6 +60,7 @@ import './unit/replication.test.ts';
 import './unit/replication-graphql.test.ts';
 import './unit/replication-websocket.test.ts';
 import './unit/replication-webrtc.test.ts';
+import './unit/rx-state.test.ts';
 import './unit/migration-schema.test.ts';
 import './unit/attachments.test.ts';
 import './unit/attachments-compression.test.ts';

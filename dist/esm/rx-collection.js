@@ -110,10 +110,10 @@ export var RxCollectionBase = /*#__PURE__*/function () {
   // overwritten by migration-plugin
   ;
   _proto.migrationNeeded = function migrationNeeded() {
-    throw pluginMissing('migration');
+    throw pluginMissing('migration-schema');
   };
   _proto.getMigrationState = function getMigrationState() {
-    throw pluginMissing('migration');
+    throw pluginMissing('migration-schema');
   };
   _proto.startMigration = function startMigration(batchSize = 10) {
     return this.getMigrationState().startMigration(batchSize);
@@ -517,7 +517,7 @@ export var RxCollectionBase = /*#__PURE__*/function () {
     await this.destroy();
     await removeCollectionStorages(this.database.storage, this.database.internalStore, this.database.token, this.database.name, this.name, this.database.password, this.database.hashFunction);
   };
-  _createClass(RxCollectionBase, [{
+  return _createClass(RxCollectionBase, [{
     key: "insert$",
     get: function () {
       return this.$.pipe(filter(cE => cE.operation === 'INSERT'));
@@ -547,7 +547,6 @@ export var RxCollectionBase = /*#__PURE__*/function () {
       return this;
     }
   }]);
-  return RxCollectionBase;
 }();
 
 /**

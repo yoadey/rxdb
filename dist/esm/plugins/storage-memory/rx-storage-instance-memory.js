@@ -2,7 +2,7 @@ import { Subject } from 'rxjs';
 import { getStartIndexStringFromLowerBound, getStartIndexStringFromUpperBound } from "../../custom-index.js";
 import { getPrimaryFieldOfPrimaryKey } from "../../rx-schema-helper.js";
 import { categorizeBulkWriteRows } from "../../rx-storage-helper.js";
-import { deepEqual, ensureNotFalsy, now, PROMISE_RESOLVE_TRUE, PROMISE_RESOLVE_VOID, requestIdlePromiseNoQueue } from "../../plugins/utils/index.js";
+import { deepEqual, ensureNotFalsy, now, PROMISE_RESOLVE_TRUE, PROMISE_RESOLVE_VOID, randomCouchString, requestIdlePromiseNoQueue } from "../../plugins/utils/index.js";
 import { boundGE, boundGT, boundLE, boundLT } from "./binary-search-bounds.js";
 import { attachmentMapKey, compareDocsWithIndex, ensureNotRemoved, getMemoryCollectionKey, putWriteRowToState, removeDocFromState } from "./memory-helper.js";
 import { addIndexesToInternalsState, getMemoryIndexName } from "./memory-indexes.js";
@@ -14,8 +14,16 @@ import { getQueryMatcher, getSortComparator } from "../../rx-query-helper.js";
  */
 export var OPEN_MEMORY_INSTANCES = new Set();
 export var RxStorageInstanceMemory = /*#__PURE__*/function () {
+  /**
+   * Used by some plugins and storage wrappers
+   * to find out details about the internals of a write operation.
+   * For example if you want to know which documents really have been replaced
+   * or newly inserted.
+   */
+
   function RxStorageInstanceMemory(storage, databaseName, collectionName, schema, internals, options, settings) {
     this.closed = false;
+    this.categorizedByWriteInput = new WeakMap();
     this.storage = storage;
     this.databaseName = databaseName;
     this.collectionName = collectionName;
@@ -48,6 +56,7 @@ export var RxStorageInstanceMemory = /*#__PURE__*/function () {
       var _doc = _writeRow.document;
       success.push(_doc);
     }
+    this.categorizedByWriteInput.set(documentWrites, categorized);
     this.internals.ensurePersistenceTask = categorized;
     if (!this.internals.ensurePersistenceIdlePromise) {
       this.internals.ensurePersistenceIdlePromise = requestIdlePromiseNoQueue().then(() => {
@@ -94,7 +103,7 @@ export var RxStorageInstanceMemory = /*#__PURE__*/function () {
     var documentsById = this.internals.documents;
     var primaryPath = this.primaryPath;
     var categorized = this.internals.ensurePersistenceTask;
-    delete this.internals.ensurePersistenceTask;
+    this.internals.ensurePersistenceTask = undefined;
 
     /**
      * Do inserts/updates
@@ -175,17 +184,6 @@ export var RxStorageInstanceMemory = /*#__PURE__*/function () {
     upperBound = upperBound;
     var upperBoundString = getStartIndexStringFromUpperBound(this.schema, index, upperBound);
     var indexName = getMemoryIndexName(index);
-
-    // console.log('in memory query:');
-    // console.dir({
-    //     queryPlan,
-    //     lowerBound,
-    //     upperBound,
-    //     lowerBoundString,
-    //     upperBoundString,
-    //     indexName
-    // });
-
     if (!this.internals.byIndex[indexName]) {
       throw new Error('index does not exist ' + indexName);
     }
@@ -300,6 +298,7 @@ export function createMemoryStorageInstance(storage, params, settings) {
   var internals = storage.collectionStates.get(collectionKey);
   if (!internals) {
     internals = {
+      id: randomCouchString(5),
       schema: params.schema,
       removed: false,
       refCount: 1,

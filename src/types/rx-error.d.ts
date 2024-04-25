@@ -58,6 +58,7 @@ export interface RxErrorParameters {
     readonly dataAfter?: any;
     readonly pull?: boolean;
     readonly push?: boolean;
+    readonly url?: string;
     readonly key?: string;
     readonly queryObj?: any;
     readonly query?: any;
@@ -83,6 +84,7 @@ export interface RxErrorParameters {
     readonly parallel?: boolean;
     readonly collection?: any;
     readonly database?: any;
+    readonly storage?: string;
     readonly indexes?: Array<string | string[]> | Readonly<Array<string | string[]>>;
     readonly index?: string | string[] | readonly string[];
     readonly plugin?: RxPlugin | any;

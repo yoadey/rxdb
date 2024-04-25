@@ -48,6 +48,9 @@ export async function startReplicationUpstream(state) {
       task: eventBulk,
       time: timer++
     });
+    if (!state.events.active.up.getValue()) {
+      state.events.active.up.next(true);
+    }
     return scheduleProcessTasks();
   });
   firstValueFrom(state.events.canceled.pipe(filter(canceled => !!canceled))).then(() => sub.unsubscribe());

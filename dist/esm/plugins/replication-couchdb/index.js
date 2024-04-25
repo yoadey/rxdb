@@ -12,7 +12,6 @@ import { awaitRetry } from "../replication/replication-helper.js";
 export * from "./couchdb-helper.js";
 export * from "./couchdb-types.js";
 export var RxCouchDBReplicationState = /*#__PURE__*/function (_RxReplicationState) {
-  _inheritsLoose(RxCouchDBReplicationState, _RxReplicationState);
   function RxCouchDBReplicationState(url, fetch, replicationIdentifier, collection, pull, push, live = true, retryTime = 1000 * 5, autoStart = true) {
     var _this;
     _this = _RxReplicationState.call(this, replicationIdentifier, collection, '_deleted', pull, push, live, retryTime, autoStart) || this;
@@ -27,6 +26,7 @@ export var RxCouchDBReplicationState = /*#__PURE__*/function (_RxReplicationStat
     _this.autoStart = autoStart;
     return _this;
   }
+  _inheritsLoose(RxCouchDBReplicationState, _RxReplicationState);
   return RxCouchDBReplicationState;
 }(RxReplicationState);
 export function replicateCouchDB(options) {
@@ -123,11 +123,10 @@ export function replicateCouchDB(options) {
           }
           var realMasterState = couchDBDocToRxDocData(primaryPath, row.doc);
           var pushRow = getFromMapOrThrow(pushRowsById, row.id);
-          var conflictHandlerResult = await conflictHandler({
+          if (pushRow.assumedMasterState && (await conflictHandler({
             realMasterState,
             newDocumentState: pushRow.assumedMasterState
-          }, 'couchdb-push-1');
-          if (conflictHandlerResult.isEqual) {
+          }, 'couchdb-push-1')).isEqual) {
             remoteRevById.set(row.id, row.doc._rev);
             nonConflictRows.push(pushRow);
           } else {

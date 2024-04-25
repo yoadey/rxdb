@@ -12,6 +12,7 @@ export const PACKAGE_PRICE: { [k in PackageName]: number; } = {
     browser: 0.40,
     native: 0.40,
     performance: 0.35,
+    server: 0.25,
     // source-code access and others have no base price but only adds x% to the total.
     sourcecode: 0,
     perpetual: 0
@@ -22,7 +23,7 @@ export const PACKAGE_PRICE: { [k in PackageName]: number; } = {
  */
 export const INFLATION_RATE = 0.05;
 
-export type PackageName = 'perpetual' | 'sourcecode' | 'browser' | 'native' | 'performance';
+export type PackageName = 'perpetual' | 'sourcecode' | 'browser' | 'native' | 'performance' | 'server';
 export type ProjectAmount = '1' | '2' | 'infinity';
 export type LicensePeriod = 1 | 2 | 3;
 
@@ -67,10 +68,9 @@ export function calculatePrice(input: PriceCalculationInput) {
      * Discount if more then one package
      */
     if (input.packages.length === 2) {
+        totalPrice = totalPrice * 0.95;
+    } else if (input.packages.length > 2) {
         totalPrice = totalPrice * 0.90;
-    }
-    if (input.packages.length > 2) {
-        totalPrice = totalPrice * 0.85;
     }
 
     /**
@@ -78,7 +78,7 @@ export function calculatePrice(input: PriceCalculationInput) {
      * @link https://www.geogebra.org/graphing
      */
     if (input.companySize > 1) {
-        let companySizeIncrease = 1 + ((Math.pow((input.companySize * 1) - 1, 0.95) / 100) * 4.5);
+        let companySizeIncrease = 1 + ((Math.pow((input.companySize * 1) - 1, 0.45) / 100) * 4.5);
 
         const companySizeIncreaseMax = 6;
         if (companySizeIncrease > companySizeIncreaseMax) {
@@ -140,6 +140,18 @@ export function calculatePrice(input: PriceCalculationInput) {
     }
 
     totalPrice = Math.ceil(totalPrice);
+
+
+    /**
+     * Stripe does not allow to create abos on flexibles prices
+     * so we just round the value so we can use precreated stripe products.
+     */
+    if (totalPrice > 1200) {
+        totalPrice = Math.floor(totalPrice / 100) * 100;
+    } else {
+        totalPrice = Math.floor(totalPrice / 50) * 50;
+    }
+
     return {
         totalPrice
     };

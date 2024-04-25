@@ -7,7 +7,7 @@ description: Discover the RxDB Revolution for Angular Apps! 🚀 Learn how to su
 
 # RxDB as a Database in an Angular Application
 
-In modern web development, Angular has emerged as a popular framework for building robust and scalable applications. As Angular applications often require persistent storage and efficient data handling, choosing the right database solution is crucial. One such solution is [RxDB](https://rxdb.info/), a reactive JavaScript database for the browser, node.js, and [mobile devices](./mobile-database.md). In this article, we will explore the integration of RxDB into an Angular application and examine its various features and techniques.
+In modern web development, Angular has emerged as a popular framework for building robust and scalable applications. As Angular applications often require persistent [storage](./browser-storage.md) and efficient data handling, choosing the right database solution is crucial. One such solution is [RxDB](https://rxdb.info/), a reactive JavaScript database for the browser, node.js, and [mobile devices](./mobile-database.md). In this article, we will explore the integration of RxDB into an Angular application and examine its various features and techniques.
 
 <center>
     <a href="https://rxdb.info/">
@@ -81,15 +81,17 @@ Once installed, you can import RxDB into your Angular application and start usin
 ### Patch Change Detection with zone.js
 Angular uses change detection to detect and update UI elements when data changes. However, RxDB's data handling is based on observables, which can sometimes bypass Angular's change detection mechanism. To ensure that changes made in RxDB are detected by Angular, we need to patch the change detection mechanism using zone.js. Zone.js is a library that intercepts and tracks asynchronous operations, including observables. By patching zone.js, we can make sure that Angular is aware of changes happening in RxDB.
 
+:::warning
+
+RxDB creates rxjs observables outside of angulars zone
+So you have to import the rxjs patch to ensure the [angular change detection](https://angular.io/guide/change-detection) works correctly.
+[link](https://www.bennadel.com/blog/3448-binding-rxjs-observable-sources-outside-of-the-ngzone-in-angular-6-0-2.htm)
+
 ```ts
 //> app.component.ts
-/**
- * IMPORTANT: RxDB creates rxjs observables outside of angulars zone
- * So you have to import the rxjs patch to ensure changedetection works correctly.
- * @link https://www.bennadel.com/blog/3448-binding-rxjs-observable-sources-outside-of-the-ngzone-in-angular-6-0-2.htm
- */
 import 'zone.js/plugins/zone-patch-rxjs';
 ```
+:::
 
 ### Use the Angular async pipe to observe an RxDB Query
 Angular provides the async pipe, which is a convenient way to subscribe to observables and handle the subscription lifecycle automatically. When working with RxDB, you can use the async pipe to observe an RxDB query and bind the results directly to your Angular template. This ensures that the UI stays in sync with the data changes emitted by the RxDB query.
@@ -197,6 +199,10 @@ this.amount$ = this.dbService
                 })
             );
 ```
+
+### Use custom reactivity to have signals instead of rxjs observables
+
+RxDB supports adding custom reactivity factories that allow you to get angular signals out of the database instead of rxjs observables. [read more](../reactivity.md).
 
 ### Use Angular Services for Database creation
 To ensure proper separation of concerns and maintain a clean codebase, it is recommended to create an Angular service responsible for managing the RxDB database instance. This service can handle database creation, initialization, and provide methods for interacting with the database throughout your application.

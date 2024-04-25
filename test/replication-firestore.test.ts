@@ -14,8 +14,15 @@ import {
 
 import * as firebase from 'firebase/app';
 
-import * as humansCollection from './helper/humans-collection.ts';
-import * as schemaObjects from './helper/schema-objects.ts';
+import {
+    schemaObjects,
+    humansCollection,
+    ensureReplicationHasNoErrors,
+    HumanDocumentType,
+    ensureCollectionsHaveEqualState,
+    HumanWithTimestampDocumentType,
+    humanSchemaLiteral
+} from '../plugins/test-utils/index.mjs';
 
 
 import {
@@ -39,9 +46,8 @@ import {
     RxFirestoreReplicationState,
     SyncOptionsFirestore
 } from '../plugins/replication-firestore/index.mjs';
-import { ensureCollectionsHaveEqualState, ensureReplicationHasNoErrors } from './helper/test-util.ts';
-import { HumanDocumentType } from './helper/schemas.ts';
 import config from './unit/config.ts';
+import { wrappedValidateZSchemaStorage } from '../plugins/validate-z-schema/index.mjs';
 
 
 /**
@@ -49,14 +55,14 @@ import config from './unit/config.ts';
  * do not run in the normal test suite
  * because it is too slow to setup the firestore backend emulators.
  */
-describe('replication-firestore.test.js', function () {
+describe('replication-firestore.test.ts', function () {
     this.timeout(1000 * 20);
     /**
      * Use a low batchSize in all tests
      * to make it easier to test boundaries.
      */
     const batchSize = 5;
-    type TestDocType = schemaObjects.HumanWithTimestampDocumentType;
+    type TestDocType = HumanWithTimestampDocumentType;
     async function getAllDocsOfFirestore(firestore: FirestoreOptions<TestDocType>): Promise<TestDocType[]> {
         const result = await getDocs(query(firestore.collection));
         return result.docs.map(d => {
@@ -165,7 +171,7 @@ describe('replication-firestore.test.js', function () {
             assert.strictEqual(docsOnServer.length, 2);
 
             // insert another one
-            await collection.insert(schemaObjects.humanWithTimestamp());
+            await collection.insert(schemaObjects.humanWithTimestampData());
             await replicationState.awaitInSync();
 
             docsOnServer = await getAllDocsOfFirestore(firestoreState);
@@ -210,7 +216,7 @@ describe('replication-firestore.test.js', function () {
             await ensureCollectionsHaveEqualState(collectionA, collectionB);
 
             // insert one
-            await collectionA.insert(schemaObjects.humanWithTimestamp({ id: 'insert', name: 'InsertName' }));
+            await collectionA.insert(schemaObjects.humanWithTimestampData({ id: 'insert', name: 'InsertName' }));
             await replicationStateA.awaitInSync();
 
             await replicationStateB.awaitInSync();
@@ -226,7 +232,7 @@ describe('replication-firestore.test.js', function () {
             await collectionA.bulkInsert(
                 new Array(10)
                     .fill(0)
-                    .map(() => schemaObjects.humanWithTimestamp({ name: 'insert-many' }))
+                    .map(() => schemaObjects.humanWithTimestampData({ name: 'insert-many' }))
             );
             await replicationStateA.awaitInSync();
 
@@ -235,8 +241,8 @@ describe('replication-firestore.test.js', function () {
 
             // insert at both collections at the same time
             await Promise.all([
-                collectionA.insert(schemaObjects.humanWithTimestamp({ name: 'insert-parallel-A' })),
-                collectionB.insert(schemaObjects.humanWithTimestamp({ name: 'insert-parallel-B' }))
+                collectionA.insert(schemaObjects.humanWithTimestampData({ name: 'insert-parallel-A' })),
+                collectionB.insert(schemaObjects.humanWithTimestampData({ name: 'insert-parallel-B' }))
             ]);
             await replicationStateA.awaitInSync();
             await replicationStateB.awaitInSync();
@@ -283,8 +289,8 @@ describe('replication-firestore.test.js', function () {
         it('should only sync filtered documents from firestore', async () => {
             const firestoreState = getFirestoreState();
 
-            const h1 = makeFirestoreHumanDocument(schemaObjects.human('replicated', 35, 'replicated'));
-            const h2 = makeFirestoreHumanDocument(schemaObjects.human('not replicated', 27, 'not replicated'));
+            const h1 = makeFirestoreHumanDocument(schemaObjects.humanData('replicated', 35, 'replicated'));
+            const h2 = makeFirestoreHumanDocument(schemaObjects.humanData('not replicated', 27, 'not replicated'));
 
             await setDoc(DocRef(firestoreState.collection, 'replicated'), h1);
             await setDoc(DocRef(firestoreState.collection, 'not replicated'), h2);
@@ -312,8 +318,8 @@ describe('replication-firestore.test.js', function () {
             const collection = await humansCollection.create(0);
 
 
-            await collection.insert(schemaObjects.human('replicated', 35, 'filtered-replication-c2s-1'));
-            await collection.insert(schemaObjects.human('not replicated', 27, 'filtered-replication-c2s-2'));
+            await collection.insert(schemaObjects.humanData('replicated', 35, 'filtered-replication-c2s-1'));
+            await collection.insert(schemaObjects.humanData('not replicated', 27, 'filtered-replication-c2s-2'));
 
             await syncOnce(collection, firestoreState, {
                 pull: {},
@@ -334,42 +340,9 @@ describe('replication-firestore.test.js', function () {
     });
     describe('issues', () => {
         it('#4698 adding items quickly does not send them to the server', async () => {
-            const mySchema = {
-                version: 0,
-                primaryKey: 'passportId',
-                type: 'object',
-                properties: {
-                    passportId: {
-                        type: 'string',
-                        maxLength: 100
-                    },
-                    firstName: {
-                        type: 'string'
-                    },
-                    lastName: {
-                        type: 'string'
-                    },
-                    age: {
-                        type: 'integer',
-                        minimum: 0,
-                        maximum: 150
-                    }
-                }
-            };
-
-            /**
-             * Always generate a random database-name
-             * to ensure that different test runs do not affect each other.
-             */
             const name = randomCouchString(10);
-
-            // create a database
             const db = await createRxDatabase({
                 name,
-                /**
-                 * By calling config.storage.getStorage(),
-                 * we can ensure that all variations of RxStorage are tested in the CI.
-                 */
                 storage: config.storage.getStorage(),
                 eventReduce: true,
                 ignoreDuplicate: true
@@ -378,12 +351,11 @@ describe('replication-firestore.test.js', function () {
             // create a collection
             const collections = await db.addCollections({
                 mycollection: {
-                    schema: mySchema
+                    schema: humanSchemaLiteral
                 }
             });
 
             const firestoreState = getFirestoreState();
-
             const replicationState = replicateFirestore({
                 replicationIdentifier: firestoreState.projectId,
                 firestore: firestoreState,
@@ -391,10 +363,6 @@ describe('replication-firestore.test.js', function () {
                 pull: {},
                 push: {},
                 live: true,
-            });
-            replicationState.sent$.subscribe(x => {
-                console.log('# send:');
-                console.dir(x);
             });
             ensureReplicationHasNoErrors(replicationState);
 
@@ -415,15 +383,42 @@ describe('replication-firestore.test.js', function () {
             const myDocument = await collections.mycollection.findOne({ selector: { passportId: 'foobar' } }).exec();
             assert.strictEqual(myDocument.age, 30);
 
-
             // ensure correct remote value
             const docRef = DocRef(firestoreState.collection, 'foobar');
             const docSnap = ensureNotFalsy(await getDoc(docRef));
 
             assert.strictEqual(ensureNotFalsy(docSnap.data()).age, 30);
-
-            // clean up afterwards
             db.destroy();
+        });
+        it('#5572 firestore replication not working with schema validation', async () => {
+            const collection = await humansCollection.create(0, undefined, undefined, undefined, wrappedValidateZSchemaStorage({
+                storage: config.storage.getStorage()
+            }));
+            const firestoreState = getFirestoreState();
+            const replicationState = replicateFirestore({
+                replicationIdentifier: firestoreState.projectId,
+                firestore: firestoreState,
+                collection,
+                pull: {},
+                push: {},
+                live: true,
+            });
+            ensureReplicationHasNoErrors(replicationState);
+            await replicationState.awaitInitialReplication();
+
+            const doc = await collection.insert(schemaObjects.humanData('foobar'));
+            await replicationState.awaitInSync();
+            await doc.incrementalPatch({ age: 30 });
+            await replicationState.awaitInSync();
+
+            const myDocument = await collection.findOne({ selector: { passportId: 'foobar' } }).exec(true);
+            assert.strictEqual(myDocument.age, 30);
+
+            const docRef = DocRef(firestoreState.collection, 'foobar');
+            const docSnap = ensureNotFalsy(await getDoc(docRef));
+            assert.strictEqual(ensureNotFalsy(docSnap.data()).age, 30);
+
+            collection.database.destroy();
         });
     });
 });

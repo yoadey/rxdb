@@ -29,7 +29,8 @@ import type {
     RxStorageWriteErrorConflict,
     RxStorageWriteErrorAttachment,
     RxStorage,
-    RxStorageDefaultCheckpoint
+    RxStorageDefaultCheckpoint,
+    FilledMangoQuery
 } from './types/index.d.ts';
 import {
     PROMISE_RESOLVE_TRUE,
@@ -48,6 +49,7 @@ import {
 } from './plugins/utils/index.ts';
 import { Observable, filter, map, startWith, switchMap } from 'rxjs';
 import { prepareQuery } from './rx-query.ts';
+import { normalizeMangoQuery } from './rx-query-helper.ts';
 
 export const INTERNAL_STORAGE_NAME = '_rxdb_internal';
 export const RX_DATABASE_LOCAL_DOCS_STORAGE_NAME = 'rxdatabase_storage_local';
@@ -108,7 +110,6 @@ export function observeSingle<RxDocType>(
         ) as any;
     return ret;
 }
-
 
 /**
  * Checkpoints must be stackable over another.
@@ -505,7 +506,6 @@ export function attachmentWriteDataToNormalData(writeData: RxAttachmentData | Rx
 }
 
 export function stripAttachmentsDataFromDocument<RxDocType>(doc: RxDocumentWriteData<RxDocType>): RxDocumentData<RxDocType> {
-
     if (!doc._attachments || Object.keys(doc._attachments).length === 0) {
         return doc;
     }
@@ -550,7 +550,7 @@ export function getWrappedStorageInstance<
     InstanceCreationOptions,
     CheckpointType
 >(
-    database: RxDatabase<{}, Internals, InstanceCreationOptions>,
+    database: RxDatabase<{}, Internals, InstanceCreationOptions, any>,
     storageInstance: RxStorageInstance<RxDocType, Internals, InstanceCreationOptions, CheckpointType>,
     /**
      * The original RxJsonSchema
@@ -859,6 +859,52 @@ export function hasEncryption(jsonSchema: RxJsonSchema<any>): boolean {
     }
 }
 
+export function getChangedDocumentsSinceQuery<RxDocType, CheckpointType>(
+    storageInstance: RxStorageInstance<RxDocType, any, any, CheckpointType>,
+    limit: number,
+    checkpoint?: CheckpointType
+): FilledMangoQuery<RxDocType> {
+    const primaryPath = getPrimaryFieldOfPrimaryKey(storageInstance.schema.primaryKey);
+    const sinceLwt = checkpoint ? (checkpoint as unknown as RxStorageDefaultCheckpoint).lwt : RX_META_LWT_MINIMUM;
+    const sinceId = checkpoint ? (checkpoint as unknown as RxStorageDefaultCheckpoint).id : '';
+    return normalizeMangoQuery(storageInstance.schema, {
+        selector: {
+            $or: [
+                {
+                    '_meta.lwt': {
+                        $gt: sinceLwt
+                    }
+                },
+                {
+                    '_meta.lwt': {
+                        $eq: sinceLwt
+                    },
+                    [primaryPath]: {
+                        $gt: checkpoint ? sinceId : ''
+                    }
+                }
+            ],
+            // add this hint for better index usage
+            '_meta.lwt': {
+                $gte: sinceLwt
+            }
+        } as any,
+        sort: [
+            { '_meta.lwt': 'asc' },
+            { [primaryPath]: 'asc' }
+        ] as any,
+        skip: 0,
+        limit,
+        /**
+         * DO NOT SET A SPECIFIC INDEX HERE!
+         * The query might be modified by some plugin
+         * before sending it to the storage.
+         * We can be sure that in the end the query planner
+         * will find the best index.
+         */
+        // index: ['_meta.lwt', primaryPath]
+    });
+}
 
 export async function getChangedDocumentsSince<RxDocType, CheckpointType>(
     storageInstance: RxStorageInstance<RxDocType, any, any, CheckpointType>,
@@ -878,40 +924,13 @@ export async function getChangedDocumentsSince<RxDocType, CheckpointType>(
     }
 
     const primaryPath = getPrimaryFieldOfPrimaryKey(storageInstance.schema.primaryKey);
-    const sinceLwt = checkpoint ? (checkpoint as unknown as RxStorageDefaultCheckpoint).lwt : RX_META_LWT_MINIMUM;
-    const sinceId = checkpoint ? (checkpoint as unknown as RxStorageDefaultCheckpoint).id : '';
     const query = prepareQuery<RxDocumentData<any>>(
         storageInstance.schema,
-        {
-            selector: {
-                $or: [
-                    {
-                        '_meta.lwt': {
-                            $gt: sinceLwt
-                        }
-                    },
-                    {
-                        '_meta.lwt': {
-                            $eq: sinceLwt
-                        },
-                        [primaryPath]: {
-                            $gt: checkpoint ? sinceId : ''
-                        }
-                    }
-                ],
-                // add this hint for better index usage
-                '_meta.lwt': {
-                    $gte: sinceLwt
-                }
-            },
-            sort: [
-                { '_meta.lwt': 'asc' },
-                { [primaryPath]: 'asc' }
-            ],
-            skip: 0,
+        getChangedDocumentsSinceQuery(
+            storageInstance,
             limit,
-            index: ['_meta.lwt', primaryPath]
-        }
+            checkpoint
+        )
     );
 
     const result = await storageInstance.query(query);

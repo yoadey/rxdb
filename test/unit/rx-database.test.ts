@@ -1,4 +1,4 @@
-import config, { getPassword } from './config.ts';
+import config, { describeParallel } from './config.ts';
 import assert from 'assert';
 
 import {
@@ -13,13 +13,18 @@ import {
 } from '../../plugins/core/index.mjs';
 
 import AsyncTestUtil from 'async-test-util';
-import * as schemas from '../helper/schemas.ts';
-import * as humansCollection from '../helper/humans-collection.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import {
+    schemaObjects,
+    schemas,
+    humansCollection,
+    getPassword
+} from '../../plugins/test-utils/index.mjs';
+import {
+    getRxStorageMemory
+} from '../../plugins/storage-memory/index.mjs';
 
-
-config.parallel('rx-database.test.ts', () => {
-    describe('.create()', () => {
+describeParallel('rx-database.test.ts', () => {
+    describe('createRxDatabase()', () => {
         describe('positive', () => {
             it('normal', async () => {
                 const db = await createRxDatabase({
@@ -38,7 +43,7 @@ config.parallel('rx-database.test.ts', () => {
                 assert.ok(isRxDatabase(db));
                 db.destroy();
             });
-            it('2 instances on same adapter (if ignoreDuplicate is true)', async () => {
+            it('2 instances on same storage (if ignoreDuplicate is true)', async () => {
                 const name = randomCouchString(10);
                 const db = await createRxDatabase({
                     name,
@@ -85,6 +90,22 @@ config.parallel('rx-database.test.ts', () => {
                     name,
                     storage: config.storage.getStorage()
                 });
+                db2.destroy();
+            });
+            it('do allow 2 databases with same name but different storage', async () => {
+                if (config.storage.name.includes('memory')) {
+                    return;
+                }
+                const name = randomCouchString(10);
+                const db = await createRxDatabase({
+                    name,
+                    storage: getRxStorageMemory()
+                });
+                const db2 = await createRxDatabase({
+                    name,
+                    storage: config.storage.getStorage()
+                });
+                db.destroy();
                 db2.destroy();
             });
             it('2 password-instances on same adapter', async () => {
@@ -191,7 +212,7 @@ config.parallel('rx-database.test.ts', () => {
                     'ending'
                 );
             });
-            it('do not allow 2 databases with same name and adapter', async () => {
+            it('do not allow 2 databases with same name and storage', async () => {
                 const name = randomCouchString(10);
                 const db = await createRxDatabase({
                     name,
@@ -381,7 +402,7 @@ config.parallel('rx-database.test.ts', () => {
                         schema: schemas.human
                     }
                 });
-                await cols.human8.insert(schemaObjects.human());
+                await cols.human8.insert(schemaObjects.humanData());
                 await AsyncTestUtil.assertThrows(
                     () => db.addCollections({
                         human8: {
@@ -462,7 +483,7 @@ config.parallel('rx-database.test.ts', () => {
                         schema: schemas.human
                     }
                 });
-                await col1[collectionName].insert(schemaObjects.human());
+                await col1[collectionName].insert(schemaObjects.humanData());
                 await AsyncTestUtil.assertThrows(
                     () => db2.addCollections({
                         [collectionName]: {

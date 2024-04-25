@@ -7,11 +7,11 @@
 
 import { BehaviorSubject, combineLatest, filter, mergeMap, Subject } from 'rxjs';
 import { RxDBLeaderElectionPlugin } from "../leader-election/index.js";
-import { arrayFilterNotEmpty, ensureNotFalsy, errorToPlainJson, flatClone, getFromMapOrCreate, PROMISE_RESOLVE_FALSE, PROMISE_RESOLVE_TRUE, toArray } from "../../plugins/utils/index.js";
+import { arrayFilterNotEmpty, ensureNotFalsy, errorToPlainJson, flatClone, getFromMapOrCreate, PROMISE_RESOLVE_FALSE, PROMISE_RESOLVE_TRUE, toArray, toPromise } from "../../plugins/utils/index.js";
 import { awaitRxStorageReplicationFirstInSync, awaitRxStorageReplicationInSync, cancelRxStorageReplication, getRxReplicationMetaInstanceSchema, replicateRxStorageInstance } from "../../replication-protocol/index.js";
 import { newRxError } from "../../rx-error.js";
 import { awaitRetry, DEFAULT_MODIFIER, swapDefaultDeletedTodeletedField, handlePulledDocuments } from "./replication-helper.js";
-import { addConnectedStorageToCollection } from "../../rx-database-internal-store.js";
+import { addConnectedStorageToCollection, removeConnectedStorageFromCollection } from "../../rx-database-internal-store.js";
 import { addRxPlugin } from "../../plugin.js";
 import { hasEncryption } from "../../rx-storage-helper.js";
 import { overwritable } from "../../overwritable.js";
@@ -41,6 +41,7 @@ export var RxReplicationState = /*#__PURE__*/function () {
     this.error$ = this.subjects.error.asObservable();
     this.canceled$ = this.subjects.canceled.asObservable();
     this.active$ = this.subjects.active.asObservable();
+    this.onCancel = [];
     this.callOnStart = undefined;
     this.remoteEvents$ = new Subject();
     this.replicationIdentifier = replicationIdentifier;
@@ -52,6 +53,14 @@ export var RxReplicationState = /*#__PURE__*/function () {
     this.retryTime = retryTime;
     this.autoStart = autoStart;
     this.waitBeforePersist = waitBeforePersist;
+    this.metaInfoPromise = (async () => {
+      var metaInstanceCollectionName = 'rx-replication-meta-' + (await collection.database.hashFunction([this.collection.name, this.replicationIdentifier].join('-')));
+      var metaInstanceSchema = getRxReplicationMetaInstanceSchema(this.collection.schema.jsonSchema, hasEncryption(this.collection.schema.jsonSchema));
+      return {
+        collectionName: metaInstanceCollectionName,
+        schema: metaInstanceSchema
+      };
+    })();
     var replicationStates = getFromMapOrCreate(REPLICATION_STATE_BY_COLLECTION, collection, () => []);
     replicationStates.push(this);
 
@@ -81,19 +90,18 @@ export var RxReplicationState = /*#__PURE__*/function () {
     var pullModifier = this.pull && this.pull.modifier ? this.pull.modifier : DEFAULT_MODIFIER;
     var pushModifier = this.push && this.push.modifier ? this.push.modifier : DEFAULT_MODIFIER;
     var database = this.collection.database;
-    var metaInstanceCollectionName = 'rx-replication-meta-' + (await database.hashFunction([this.collection.name, this.replicationIdentifier].join('-')));
-    var metaInstanceSchema = getRxReplicationMetaInstanceSchema(this.collection.schema.jsonSchema, hasEncryption(this.collection.schema.jsonSchema));
+    var metaInfo = await this.metaInfoPromise;
     var [metaInstance] = await Promise.all([this.collection.database.storage.createStorageInstance({
       databaseName: database.name,
-      collectionName: metaInstanceCollectionName,
+      collectionName: metaInfo.collectionName,
       databaseInstanceToken: database.token,
       multiInstance: database.multiInstance,
       // TODO is this always false?
       options: {},
-      schema: metaInstanceSchema,
+      schema: metaInfo.schema,
       password: database.password,
       devMode: overwritable.isDevMode()
-    }), addConnectedStorageToCollection(this.collection, metaInstanceCollectionName, metaInstanceSchema)]);
+    }), addConnectedStorageToCollection(this.collection, metaInfo.collectionName, metaInfo.schema)]);
     this.metaInstance = metaInstance;
     this.internalReplicationState = replicateRxStorageInstance({
       pushBatchSize: this.push && this.push.batchSize ? this.push.batchSize : 100,
@@ -287,6 +295,19 @@ export var RxReplicationState = /*#__PURE__*/function () {
     await awaitRxStorageReplicationFirstInSync(ensureNotFalsy(this.internalReplicationState));
 
     /**
+     * To reduce the amount of re-renders and make testing
+     * and to make the whole behavior more predictable,
+     * we await these things multiple times.
+     * For example the state might be in sync already and at the
+     * exact same time a pull.stream$ event comes in and we want to catch
+     * that in the same call to awaitInSync() instead of resolving
+     * while actually the state is not in sync.
+     */
+    var t = 2;
+    while (t > 0) {
+      t--;
+
+      /**
      * Often awaitInSync() is called directly after a document write,
      * like in the unit tests.
      * So we first have to await the idleness to ensure that all RxChangeEvents
@@ -294,6 +315,7 @@ export var RxReplicationState = /*#__PURE__*/function () {
      */
     await this.collection.database.requestIdlePromise();
     await awaitRxStorageReplicationInSync(ensureNotFalsy(this.internalReplicationState));
+    }
     return true;
   };
   _proto.reSync = function reSync() {
@@ -306,7 +328,7 @@ export var RxReplicationState = /*#__PURE__*/function () {
     if (this.isStopped()) {
       return PROMISE_RESOLVE_FALSE;
     }
-    var promises = [];
+    var promises = this.onCancel.map(fn => toPromise(fn()));
     if (this.internalReplicationState) {
       await cancelRxStorageReplication(this.internalReplicationState);
     }
@@ -321,6 +343,12 @@ export var RxReplicationState = /*#__PURE__*/function () {
     this.subjects.received.complete();
     this.subjects.sent.complete();
     return Promise.all(promises);
+  };
+  _proto.remove = async function remove() {
+    await ensureNotFalsy(this.metaInstance).remove();
+    var metaInfo = await this.metaInfoPromise;
+    await this.cancel();
+    await removeConnectedStorageFromCollection(this.collection, metaInfo.collectionName, metaInfo.schema);
   };
   return RxReplicationState;
 }();

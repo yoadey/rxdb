@@ -252,7 +252,7 @@ export var RxQueryBase = /*#__PURE__*/function () {
   _proto.limit = function limit(_amount) {
     throw pluginMissing('query-builder');
   };
-  _createClass(RxQueryBase, [{
+  return _createClass(RxQueryBase, [{
     key: "$",
     get: function () {
       if (!this._$) {
@@ -309,6 +309,12 @@ export var RxQueryBase = /*#__PURE__*/function () {
       }
       return this._$;
     }
+  }, {
+    key: "$$",
+    get: function () {
+      var reactivity = this.collection.database.getReactivityFactory();
+      return reactivity.fromObservable(this.$, undefined, this.collection.database);
+    }
 
     // stores the changeEvent-number of the last handled change-event
 
@@ -332,7 +338,6 @@ export var RxQueryBase = /*#__PURE__*/function () {
       return this;
     }
   }]);
-  return RxQueryBase;
 }();
 export function _getDefaultQuery() {
   return {

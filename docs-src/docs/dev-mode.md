@@ -14,9 +14,11 @@ using RxDB in development mode.
 - Adds readable error messages.
 - Ensures that `readonly` JavaScript objects are not accidentally mutated.
 - Adds validation check for validity of schemas, queries, ORM methods and document fields.
-  - **NOTICE**: The `dev-mode` plugin does not perform schema checks against the data see [schema validation](./schema-validation.md) for that.
+  - Notice that the `dev-mode` plugin does not perform schema checks against the data see [schema validation](./schema-validation.md) for that.
 
-**IMPORTANT**: The dev-mode plugin will increase your build size and decrease the performance. It must **always** be used in development. You should **never** use it in production.
+:::warning
+The dev-mode plugin will increase your build size and decrease the performance. It must **always** be used in development. You should **never** use it in production.
+:::
 
 ```javascript
 import { addRxPlugin } from 'rxdb';
@@ -53,7 +55,6 @@ async function createDb() {
     const db = createRxDatabase( /* ... */ );
     // ...
 }
-
 ```
 
 
@@ -88,4 +89,15 @@ async function createDb() {
     // ...
 }
 
+```
+
+
+
+## Disable the dev-mode warning
+
+When the dev-mode is enabled, it will print a `console.warn()` message to the console so that you do not accidentally use the dev-mode in production. To disable this warning you can call the `disableWarnings()` function.
+
+```ts
+import { disableWarnings } from 'rxdb/plugins/dev-mode';
+disableWarnings();
 ```

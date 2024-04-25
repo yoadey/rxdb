@@ -1,6 +1,9 @@
 import { Subject } from 'rxjs';
 import { ensureNotFalsy, getFromMapOrThrow, PROMISE_RESOLVE_VOID, promiseWait, randomCouchString } from "../../plugins/utils/index.js";
-import { default as Peer } from 'simple-peer';
+import { default as _Peer
+// @ts-ignore
+} from 'simple-peer/simplepeer.min.js';
+var Peer = _Peer;
 import { newRxError } from "../../rx-error.js";
 function sendMessage(ws, msg) {
   ws.send(JSON.stringify(msg));
@@ -16,8 +19,10 @@ export var SIMPLE_PEER_PING_INTERVAL = 1000 * 60 * 2;
 export function getConnectionHandlerSimplePeer({
   signalingServerUrl,
   wrtc,
+  config,
   webSocketConstructor
 }) {
+  ensureProcessNextTickIsSet();
   signalingServerUrl = signalingServerUrl ? signalingServerUrl : DEFAULT_SIGNALING_SERVER;
   webSocketConstructor = webSocketConstructor ? webSocketConstructor : WebSocket;
   if (signalingServerUrl.includes(DEFAULT_SIGNALING_SERVER_HOSTNAME) && !defaultServerWarningShown) {
@@ -85,6 +90,7 @@ export function getConnectionHandlerSimplePeer({
                 var newSimplePeer = new Peer({
                   initiator: remotePeerId > ownPeerId,
                   wrtc,
+                  config,
                   trickle: true
                 });
                 newSimplePeer.id = randomCouchString(10);
@@ -173,5 +179,16 @@ export function getConnectionHandlerSimplePeer({
     return handler;
   };
   return creator;
+}
+
+/**
+ * Multiple people had problems because it requires to have
+ * the nextTick() method in the runtime. So we check here and
+ * throw a helpful error.
+ */
+export function ensureProcessNextTickIsSet() {
+  if (typeof process === 'undefined' || typeof process.nextTick !== 'function') {
+    throw newRxError('RC7');
+  }
 }
 //# sourceMappingURL=connection-handler-simple-peer.js.map

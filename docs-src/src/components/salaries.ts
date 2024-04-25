@@ -121,7 +121,13 @@ export const AVERAGE_FRONT_END_DEVELOPER_SALARY_BY_COUNTRY: AverageFrontEndDevel
     { 'name': 'Hong Kong', 'code': 'HK', salary: 71970 },
     { 'name': 'Hungary', 'code': 'HU', salary: 22341 },
     { 'name': 'Iceland', 'code': 'IS', salary: 66512 },
-    { 'name': 'India', 'code': 'IN', salary: 17710 },
+
+    /**
+     * Too many us based companies used their indian subcompany
+     * to get a cheaper license. So we do x2 here.
+     */
+    { 'name': 'India', 'code': 'IN', salary: 17710 * 2 },
+
     { 'name': 'Indonesia', 'code': 'ID', salary: 20978 },
     // { 'name': 'Iran, Islamic Republic Of', 'code': 'IR', salary: false },
     { 'name': 'Iraq', 'code': 'IQ', salary: 21029 },
@@ -136,7 +142,7 @@ export const AVERAGE_FRONT_END_DEVELOPER_SALARY_BY_COUNTRY: AverageFrontEndDevel
     { 'name': 'Kazakhstan', 'code': 'KZ', salary: 12243 },
     // { 'name': 'Kenya', 'code': 'KE', salary: false },
     // { 'name': 'Kiribati', 'code': 'KI', salary: false },
-    { 'name': 'Korea, Republic of', 'code': 'KR', salary: 45957 },
+    { 'name': 'Republic of Korea', 'code': 'KR', salary: 45957 },
     // { 'name': 'Kuwait', 'code': 'KW', salary: false },
     // { 'name': 'Kyrgyzstan', 'code': 'KG', salary: false },
     { 'name': 'Latvia', 'code': 'LV', salary: 26728 },

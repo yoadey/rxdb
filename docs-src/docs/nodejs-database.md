@@ -5,7 +5,7 @@ slug: nodejs-database.html
 
 # Node.js Database
 
-[RxDB](https://rxdb.info) is a fast, reactive realtime NoSQL **database** made for **JavaScript** applications like Websites, hybrid Apps, Electron-Apps, Progressive Web Apps and **Node.js**. While RxDB was initially created to be used with UI applications, it has been matured and optimized to make it useful for pure server-side use cases. It can be used as embedded, local database inside of the Node.js JavaScript process, or it can be used similar to a database server that Node.js can connect to. The [RxStorage](./rx-storage.md) layer makes it possible to switch out the underlying storage engine which makes RxDB a very flexible database that can be optimized for many scenarios.
+[RxDB](https://rxdb.info) is a fast, reactive realtime NoSQL **database** made for **JavaScript** applications like Websites, hybrid Apps, [Electron-Apps](./electron-database.md), Progressive Web Apps and **Node.js**. While RxDB was initially created to be used with UI applications, it has been matured and optimized to make it useful for pure server-side use cases. It can be used as embedded, local database inside of the Node.js JavaScript process, or it can be used similar to a database server that Node.js can connect to. The [RxStorage](./rx-storage.md) layer makes it possible to switch out the underlying storage engine which makes RxDB a very flexible database that can be optimized for many scenarios.
 
 
 <p align="center">
@@ -14,7 +14,7 @@ slug: nodejs-database.html
 
 ## Persistent Database
 
-To get a "normal" database where the data is persisted to a file system, RxDB provides multiple storage implementations.
+To get a "normal" database connection where the data is persisted to a file system, the RxDB real time database provides multiple [storage implementations](./rx-storage.md) that work in Node.js.
 
 The [FoundationDB](./rx-storage-foundationdb.md) storage connects to a [FoundationDB](https://github.com/apple/foundationdb) cluster which itself is just a distributed key-value engine. RxDB adds the NoSQL query-engine, indexes and other features on top of it.
 It scales horizontally because you can always add more servers to the FoundationDB cluster to increase the capacity.
@@ -147,3 +147,4 @@ Sometimes however you might not want to store the full dataset on each microserv
 - Check out the [RxDB Nodejs example](https://github.com/pubkey/rxdb/tree/master/examples/node).
 - If you haven't done yet, you should start learning about RxDB with the [Quickstart Tutorial](./quickstart.md).
 - I created [a list of embedded JavaSCript databases](./alternatives.md) that you will help you to pick a database if you do not want to use RxDB.
+- Check out the [MongoDB RxStorage](./rx-storage-mongodb.md) that uses MongoDB for the database connection from your Node.js application and runs the RxDB real time database on top of it.

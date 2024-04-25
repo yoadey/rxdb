@@ -27,7 +27,7 @@ var _rxDatabaseInternalStore = require("./rx-database-internal-store.js");
 var _rxCollectionHelper = require("./rx-collection-helper.js");
 var _overwritable = require("./overwritable.js");
 /**
- * stores the used database names
+ * stores the used database names+storage names
  * so we can throw when the same database is created more then once.
  */
 var USED_DATABASE_NAMES = new Set();
@@ -48,7 +48,7 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
   /**
    * Stores information documents about the collections of the database
    */
-  internalStore, hashFunction, cleanupPolicy, allowSlowCount) {
+  internalStore, hashFunction, cleanupPolicy, allowSlowCount, reactivity) {
     this.idleQueue = new _customIdleQueue.IdleQueue();
     this.rxdbVersion = _index.RXDB_VERSION;
     this.storageInstances = new Set();
@@ -57,6 +57,7 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
     this.onDestroy = [];
     this.destroyed = false;
     this.collections = {};
+    this.states = {};
     this.eventBulks$ = new _rxjs.Subject();
     this.observable$ = this.eventBulks$.pipe((0, _operators.mergeMap)(changeEventBulk => changeEventBulk.events));
     this.storageToken = _index.PROMISE_RESOLVE_FALSE;
@@ -74,6 +75,7 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
     this.hashFunction = hashFunction;
     this.cleanupPolicy = cleanupPolicy;
     this.allowSlowCount = allowSlowCount;
+    this.reactivity = reactivity;
     DB_COUNT++;
 
     /**
@@ -107,6 +109,51 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
     }
   }
   var _proto = RxDatabaseBase.prototype;
+  _proto.getReactivityFactory = function getReactivityFactory() {
+    if (!this.reactivity) {
+      throw (0, _rxError.newRxError)('DB14', {
+        database: this.name
+      });
+    }
+    return this.reactivity;
+  }
+
+  /**
+   * Because having unhandled exceptions would fail,
+   * we have to store the async errors of the constructor here
+   * so we can throw them later.
+   */
+
+  /**
+   * When the database is destroyed,
+   * these functions will be called an awaited.
+   * Used to automatically clean up stuff that
+   * belongs to this collection.
+   */
+
+  /**
+   * Unique token that is stored with the data.
+   * Used to detect if the dataset has been deleted
+   * and if two RxDatabase instances work on the same dataset or not.
+   *
+   * Because reading and writing the storageToken runs in the hot path
+   * of database creation, we do not await the storageWrites but instead
+   * work with the promise when we need the value.
+   */
+
+  /**
+   * Stores the whole state of the internal storage token document.
+   * We need this in some plugins.
+   */
+
+  /**
+   * Contains the ids of all event bulks that have been emitted
+   * by the database.
+   * Used to detect duplicates that come in again via BroadcastChannel
+   * or other streams.
+   * TODO instead of having this here, we should add a test to ensure each RxStorage
+   * behaves equal and does never emit duplicate eventBulks.
+   */;
   /**
    * This is the main handle-point for all change events
    * ChangeEvents created by this instance go:
@@ -257,6 +304,9 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
    */;
   _proto.exportJSON = function exportJSON(_collections) {
     throw (0, _index.pluginMissing)('json-dump');
+  };
+  _proto.addState = function addState(_name) {
+    throw (0, _index.pluginMissing)('state');
   }
 
   /**
@@ -284,7 +334,7 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
     throw (0, _index.pluginMissing)('leader-election');
   };
   _proto.migrationStates = function migrationStates() {
-    throw (0, _index.pluginMissing)('migration');
+    throw (0, _index.pluginMissing)('migration-schema');
   }
 
   /**
@@ -325,7 +375,7 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
     // destroy internal storage instances
     .then(() => this.internalStore.close())
     // remove combination from USED_COMBINATIONS-map
-    .then(() => USED_DATABASE_NAMES.delete(this.name)).then(() => true);
+    .then(() => USED_DATABASE_NAMES.delete(this.storage.name + '|' + this.name)).then(() => true);
   }
 
   /**
@@ -335,67 +385,31 @@ var RxDatabaseBase = exports.RxDatabaseBase = /*#__PURE__*/function () {
   _proto.remove = function remove() {
     return this.destroy().then(() => removeRxDatabase(this.name, this.storage, this.password));
   };
-  (0, _createClass2.default)(RxDatabaseBase, [{
+  return (0, _createClass2.default)(RxDatabaseBase, [{
     key: "$",
     get: function () {
       return this.observable$;
     }
-
-    /**
-     * Because having unhandled exceptions would fail,
-     * we have to store the async errors of the constructor here
-     * so we can throw them later.
-     */
-
-    /**
-     * When the database is destroyed,
-     * these functions will be called an awaited.
-     * Used to automatically clean up stuff that
-     * belongs to this collection.
-     */
-
-    /**
-     * Unique token that is stored with the data.
-     * Used to detect if the dataset has been deleted
-     * and if two RxDatabase instances work on the same dataset or not.
-     *
-     * Because reading and writing the storageToken runs in the hot path
-     * of database creation, we do not await the storageWrites but instead
-     * work with the promise when we need the value.
-     */
-
-    /**
-     * Stores the whole state of the internal storage token document.
-     * We need this in some plugins.
-     */
-
-    /**
-     * Contains the ids of all event bulks that have been emitted
-     * by the database.
-     * Used to detect duplicates that come in again via BroadcastChannel
-     * or other streams.
-     * TODO instead of having this here, we should add a test to ensure each RxStorage
-     * behaves equal and does never emit duplicate eventBulks.
-     */
   }, {
     key: "asRxDatabase",
     get: function () {
       return this;
     }
   }]);
-  return RxDatabaseBase;
 }();
 /**
- * checks if an instance with same name and adapter already exists
+ * checks if an instance with same name and storage already exists
  * @throws {RxError} if used
  */
-function throwIfDatabaseNameUsed(name) {
-  if (!USED_DATABASE_NAMES.has(name)) {
+function throwIfDatabaseNameUsed(name, storage) {
+  var key = storage.name + '|' + name;
+  if (!USED_DATABASE_NAMES.has(key)) {
     return;
   } else {
     throw (0, _rxError.newRxError)('DB8', {
       name,
-      link: 'https://pubkey.github.io/rxdb/rx-database.html#ignoreduplicate'
+      storage: storage.name,
+      link: 'https://rxdb.info/rx-database.html#ignoreduplicate'
     });
   }
 }
@@ -429,7 +443,8 @@ function createRxDatabase({
   cleanupPolicy,
   allowSlowCount = false,
   localDocuments = false,
-  hashFunction = _index.defaultHashSha256
+  hashFunction = _index.defaultHashSha256,
+  reactivity
 }) {
   (0, _hooks.runPluginHooks)('preCreateRxDatabase', {
     storage,
@@ -444,9 +459,9 @@ function createRxDatabase({
   });
   // check if combination already used
   if (!ignoreDuplicate) {
-    throwIfDatabaseNameUsed(name);
+    throwIfDatabaseNameUsed(name, storage);
   }
-  USED_DATABASE_NAMES.add(name);
+  USED_DATABASE_NAMES.add(storage.name + '|' + name);
   var databaseInstanceToken = (0, _index.randomCouchString)(10);
   return createRxDatabaseStorageInstance(databaseInstanceToken, storage, name, instanceCreationOptions, multiInstance, password)
   /**
@@ -455,10 +470,10 @@ function createRxDatabase({
    * and then throw.
    * In that case we have to properly clean up the database.
    */.catch(err => {
-    USED_DATABASE_NAMES.delete(name);
+    USED_DATABASE_NAMES.delete(storage.name + '|' + name);
     throw err;
   }).then(storageInstance => {
-    var rxDatabase = new RxDatabaseBase(name, databaseInstanceToken, storage, instanceCreationOptions, password, multiInstance, eventReduce, options, storageInstance, hashFunction, cleanupPolicy, allowSlowCount);
+    var rxDatabase = new RxDatabaseBase(name, databaseInstanceToken, storage, instanceCreationOptions, password, multiInstance, eventReduce, options, storageInstance, hashFunction, cleanupPolicy, allowSlowCount, reactivity);
     return (0, _hooks.runAsyncPluginHooks)('createRxDatabase', {
       database: rxDatabase,
       creator: {

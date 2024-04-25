@@ -45,8 +45,11 @@ import {
     migrateStorage
 } from '../../plugins/migration-storage/index.mjs';
 
-import * as schemaObjects from '../helper/schema-objects.ts';
-import { HumanDocumentType, human } from '../helper/schemas.ts';
+import {
+    HumanDocumentType,
+    human,
+    schemaObjects
+} from '../../plugins/test-utils/index.mjs';
 import config from './config.ts';
 
 
@@ -96,7 +99,7 @@ testStorages.forEach(storages => {
     describe('migration-storage.test.ts (' + storages.name + ')', () => {
         describe('basic migrations', () => {
             it('create both databases', async () => {
-                const oldDb = await storages.createRxDatabaseOld({
+                const oldDb = await (storages.createRxDatabaseOld as any)({
                     name: DB_PREFIX + randomCouchString(12),
                     storage: storages.old() as any,
                     multiInstance: false
@@ -128,7 +131,7 @@ testStorages.forEach(storages => {
 
                 // create old database and insert data
                 const oldDatabaseName = name + '-old';
-                const oldDb = await storages.createRxDatabaseOld({
+                const oldDb: any = await (storages.createRxDatabaseOld as any)({
                     name: oldDatabaseName,
                     storage: storages.old() as any,
                     multiInstance: false
@@ -139,11 +142,11 @@ testStorages.forEach(storages => {
                     }
                 });
 
-                const oldCol = oldDb[collectionName];
+                const oldCol: RxCollection = oldDb[collectionName];
 
                 const docsAmount = 100;
                 const docsData: HumanDocumentType[] = new Array(docsAmount).fill(0).map((_x) => {
-                    return schemaObjects.human(
+                    return schemaObjects.humanData(
 
                     );
                 });
@@ -217,7 +220,7 @@ testStorages.forEach(storages => {
                 const firstEmit = handlerEmitted[0];
                 assert.deepStrictEqual(firstEmit.writeToNewResult.error, []);
 
-                await db.destroy();
+                await db.remove();
             });
             it('should migrate in parallel', async () => {
                 const name = DB_PREFIX + randomCouchString(12);
@@ -225,7 +228,7 @@ testStorages.forEach(storages => {
 
                 // create old database and insert data
                 const oldDatabaseName = name + '-old';
-                const oldDb = await storages.createRxDatabaseOld({
+                const oldDb = await (storages.createRxDatabaseOld as any)({
                     name: oldDatabaseName,
                     storage: storages.old() as any,
                     multiInstance: false
@@ -236,11 +239,11 @@ testStorages.forEach(storages => {
                     }
                 });
 
-                const oldCol = oldDb[collectionName];
+                const oldCol: RxCollection = oldDb[collectionName];
 
                 const docsAmount = 100;
                 const docsData: HumanDocumentType[] = new Array(docsAmount).fill(0).map((_x) => {
-                    return schemaObjects.human(
+                    return schemaObjects.humanData(
 
                     );
                 });
@@ -314,7 +317,7 @@ testStorages.forEach(storages => {
                 const firstEmit = handlerEmitted[0];
                 assert.deepStrictEqual(firstEmit.writeToNewResult.error, []);
 
-                await db.destroy();
+                await db.remove();
             });
             it('migrate new->new should also work', async () => {
                 const name = DB_PREFIX + randomCouchString(12);
@@ -337,7 +340,7 @@ testStorages.forEach(storages => {
 
                 const docsAmount = 100;
                 const docsData: HumanDocumentType[] = new Array(docsAmount).fill(0).map((_x) => {
-                    return schemaObjects.human();
+                    return schemaObjects.humanData();
                 });
 
                 const insertResult = await oldCol.bulkInsert(docsData);
@@ -415,7 +418,7 @@ testStorages.forEach(storages => {
         describe('issues', () => {
             it('migration with multiple collections', async () => {
                 const oldDatabaseName = DB_PREFIX + randomCouchString(12);
-                const oldDb = await storages.createRxDatabaseOld({
+                const oldDb = await (storages.createRxDatabaseOld as any)({
                     name: oldDatabaseName,
                     storage: storages.old() as any,
                     multiInstance: false
@@ -431,9 +434,9 @@ testStorages.forEach(storages => {
                         schema: human as any
                     }
                 });
-                await oldDb.col1.insert(schemaObjects.human());
-                await oldDb.col2.insert(schemaObjects.human());
-                await oldDb.col3.insert(schemaObjects.human());
+                await oldDb.col1.insert(schemaObjects.humanData());
+                await oldDb.col2.insert(schemaObjects.humanData());
+                await oldDb.col3.insert(schemaObjects.humanData());
                 await oldDb.destroy();
 
                 const db = await storages.createRxDatabaseNew({
@@ -467,7 +470,7 @@ testStorages.forEach(storages => {
                 await db.col2.findOne().exec(true);
                 await db.col2.findOne().exec(true);
 
-                await db.destroy();
+                await db.remove();
             });
         });
     });

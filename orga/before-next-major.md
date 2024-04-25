@@ -3,6 +3,9 @@
 This list contains things that have to be done but will create breaking changes.
 
 
+## OPFS storage has defualt jsonPositionSize=8 but should be 14
+
+Set the default to 14 and also remove all occurences of `jsonPositionSize`.
 
 ## Ideas from https://github.com/pubkey/rxdb/issues/4994
 
@@ -11,6 +14,10 @@ This list contains things that have to be done but will create breaking changes.
 
 RxStorage.bulkwrite(): If all writes suceeed, return "SUCESS" or sth to not have to transfer all json document data again. This is mostly important in the remote storage and webworker storage where we do not want to JSON-stringify and parse all data again.
 
+## migration-storage plugin: Remove catch from cleanup
+
+In the migration-storage plugin we run a catch on `oldStorageInstance.cleanup(0)` to fix v14->v15 migration.
+We should remove that catch in the next major release.
 
 ---------------------------------
 # Maybe later (not sure if should be done)

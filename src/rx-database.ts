@@ -25,7 +25,8 @@ import type {
     RxTypeError,
     RxError,
     HashFunction,
-    MaybePromise
+    MaybePromise,
+    RxState
 } from './types/index.d.ts';
 
 import {
@@ -81,9 +82,10 @@ import {
 import { removeCollectionStorages } from './rx-collection-helper.ts';
 import { overwritable } from './overwritable.ts';
 import type { RxMigrationState } from './plugins/migration-schema/index.ts';
+import type { RxReactivityFactory } from './types/plugins/reactivity.d.ts';
 
 /**
- * stores the used database names
+ * stores the used database names+storage names
  * so we can throw when the same database is created more then once.
  */
 const USED_DATABASE_NAMES: Set<string> = new Set();
@@ -94,6 +96,7 @@ export class RxDatabaseBase<
     Internals,
     InstanceCreationOptions,
     Collections = CollectionsOfDatabase,
+    Reactivity = unknown
 > {
 
     public readonly idleQueue: IdleQueue = new IdleQueue();
@@ -125,7 +128,8 @@ export class RxDatabaseBase<
         public readonly internalStore: RxStorageInstance<InternalStoreDocType, Internals, InstanceCreationOptions>,
         public readonly hashFunction: HashFunction,
         public readonly cleanupPolicy?: Partial<RxCleanupPolicy>,
-        public readonly allowSlowCount?: boolean
+        public readonly allowSlowCount?: boolean,
+        public readonly reactivity?: RxReactivityFactory<any>
     ) {
         DB_COUNT++;
 
@@ -171,6 +175,13 @@ export class RxDatabaseBase<
         return this.observable$;
     }
 
+    public getReactivityFactory(): RxReactivityFactory<Reactivity> {
+        if (!this.reactivity) {
+            throw newRxError('DB14', { database: this.name });
+        }
+        return this.reactivity;
+    }
+
     public _subs: Subscription[] = [];
 
     /**
@@ -189,6 +200,7 @@ export class RxDatabaseBase<
     public onDestroy: (() => MaybePromise<any>)[] = [];
     public destroyed: boolean = false;
     public collections: Collections = {} as any;
+    public states: { [name: string]: RxState<any, Reactivity>; } = {};
     public readonly eventBulks$: Subject<RxChangeEventBulk<any>> = new Subject();
     private observable$: Observable<RxChangeEvent<any>> = this.eventBulks$
         .pipe(
@@ -269,7 +281,7 @@ export class RxDatabaseBase<
      */
     async addCollections<CreatedCollections = Partial<Collections>>(collectionCreators: {
         [key in keyof CreatedCollections]: RxCollectionCreator<any>
-    }): Promise<{ [key in keyof CreatedCollections]: RxCollection }> {
+    }): Promise<{ [key in keyof CreatedCollections]: RxCollection<any, {}, {}, {}, Reactivity> }> {
         const jsonSchemas: { [key in keyof CreatedCollections]: RxJsonSchema<any> } = {} as any;
         const schemas: { [key in keyof CreatedCollections]: RxSchema<any> } = {} as any;
         const bulkPutDocs: BulkWriteRow<InternalStoreCollectionDocType>[] = [];
@@ -368,7 +380,7 @@ export class RxDatabaseBase<
             })
         );
 
-        const ret: { [key in keyof CreatedCollections]: RxCollection } = {} as any;
+        const ret: { [key in keyof CreatedCollections]: RxCollection<any, {}, {}, {}, Reactivity> } = {} as any;
         await Promise.all(
             Object.keys(collectionCreators).map(async (collectionName) => {
                 const useArgs = useArgsByCollectionName[collectionName];
@@ -408,6 +420,10 @@ export class RxDatabaseBase<
         throw pluginMissing('json-dump');
     }
 
+    addState<T = any>(_name?: string): Promise<RxState<T, Reactivity>> {
+        throw pluginMissing('state');
+    }
+
     /**
      * Import the parsed JSON export into the collection.
      * @param _exportedJSON The previously exported data from the `<db>.exportJSON()` method.
@@ -437,7 +453,7 @@ export class RxDatabaseBase<
     }
 
     public migrationStates(): Observable<RxMigrationState[]> {
-        throw pluginMissing('migration');
+        throw pluginMissing('migration-schema');
     }
 
     /**
@@ -485,7 +501,7 @@ export class RxDatabaseBase<
             // destroy internal storage instances
             .then(() => this.internalStore.close())
             // remove combination from USED_COMBINATIONS-map
-            .then(() => USED_DATABASE_NAMES.delete(this.name))
+            .then(() => USED_DATABASE_NAMES.delete(this.storage.name + '|' + this.name))
             .then(() => true);
     }
 
@@ -502,25 +518,29 @@ export class RxDatabaseBase<
     get asRxDatabase(): RxDatabase<
         {},
         Internals,
-        InstanceCreationOptions
+        InstanceCreationOptions,
+        Reactivity
     > {
         return this as any;
     }
 }
 
 /**
- * checks if an instance with same name and adapter already exists
+ * checks if an instance with same name and storage already exists
  * @throws {RxError} if used
  */
 function throwIfDatabaseNameUsed(
-    name: string
+    name: string,
+    storage: RxStorage<any, any>
 ) {
-    if (!USED_DATABASE_NAMES.has(name)) {
+    const key = storage.name + '|' + name;
+    if (!USED_DATABASE_NAMES.has(key)) {
         return;
     } else {
         throw newRxError('DB8', {
             name,
-            link: 'https://pubkey.github.io/rxdb/rx-database.html#ignoreduplicate'
+            storage: storage.name,
+            link: 'https://rxdb.info/rx-database.html#ignoreduplicate'
         });
     }
 }
@@ -555,7 +575,8 @@ export async function createRxDatabaseStorageInstance<Internals, InstanceCreatio
 export function createRxDatabase<
     Collections = { [key: string]: RxCollection; },
     Internals = any,
-    InstanceCreationOptions = any
+    InstanceCreationOptions = any,
+    Reactivity = unknown
 >(
     {
         storage,
@@ -569,10 +590,11 @@ export function createRxDatabase<
         cleanupPolicy,
         allowSlowCount = false,
         localDocuments = false,
-        hashFunction = defaultHashSha256
-    }: RxDatabaseCreator<Internals, InstanceCreationOptions>
+        hashFunction = defaultHashSha256,
+        reactivity
+    }: RxDatabaseCreator<Internals, InstanceCreationOptions, Reactivity>
 ): Promise<
-    RxDatabase<Collections, Internals, InstanceCreationOptions>
+    RxDatabase<Collections, Internals, InstanceCreationOptions, Reactivity>
 > {
     runPluginHooks('preCreateRxDatabase', {
         storage,
@@ -587,9 +609,9 @@ export function createRxDatabase<
     });
     // check if combination already used
     if (!ignoreDuplicate) {
-        throwIfDatabaseNameUsed(name);
+        throwIfDatabaseNameUsed(name, storage);
     }
-    USED_DATABASE_NAMES.add(name);
+    USED_DATABASE_NAMES.add(storage.name + '|' + name);
 
     const databaseInstanceToken = randomCouchString(10);
 
@@ -611,7 +633,7 @@ export function createRxDatabase<
          * In that case we have to properly clean up the database.
          */
         .catch(err => {
-            USED_DATABASE_NAMES.delete(name);
+            USED_DATABASE_NAMES.delete(storage.name + '|' + name);
             throw err;
         })
         .then(storageInstance => {
@@ -627,7 +649,8 @@ export function createRxDatabase<
                 storageInstance,
                 hashFunction,
                 cleanupPolicy,
-                allowSlowCount
+                allowSlowCount,
+                reactivity
             ) as any;
 
             return runAsyncPluginHooks('createRxDatabase', {
@@ -667,9 +690,7 @@ export async function removeRxDatabase(
         false,
         password
     );
-
     const collectionDocs = await getAllCollectionDocuments(dbInternalsStorageInstance);
-
     const collectionNames = new Set<string>();
     collectionDocs.forEach(doc => collectionNames.add(doc.data.name));
     const removedCollectionNames: string[] = Array.from(collectionNames);
@@ -725,7 +746,7 @@ export async function isRxDatabaseFirstTimeInstantiated(
  * on database creation.
  */
 export async function ensureNoStartupErrors(
-    rxDatabase: RxDatabaseBase<any, any, any>
+    rxDatabase: RxDatabaseBase<any, any, any, any>
 ) {
     await rxDatabase.storageToken;
     if (rxDatabase.startupErrors[0]) {

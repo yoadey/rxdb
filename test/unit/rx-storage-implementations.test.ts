@@ -1,7 +1,6 @@
 import assert from 'assert';
 
-import config from './config.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import config, { describeParallel } from './config.ts';
 import {
     addRxPlugin,
     randomCouchString,
@@ -44,7 +43,6 @@ import {
 import {
     getCompressionStateByRxJsonSchema
 } from '../../plugins/key-compression/index.mjs';
-import * as schemas from '../helper/schemas.ts';
 import { RxDBQueryBuilderPlugin } from '../../plugins/query-builder/index.mjs';
 import { defaultHashSha256 } from '../../plugins/utils/index.mjs';
 import {
@@ -55,12 +53,17 @@ import {
     waitUntil
 } from 'async-test-util';
 import { filter, map } from 'rxjs';
+
 import {
+    schemaObjects,
+    schemas,
+    isFastMode,
     EXAMPLE_REVISION_1,
     EXAMPLE_REVISION_2,
     EXAMPLE_REVISION_3,
-    EXAMPLE_REVISION_4
-} from '../helper/revisions.ts';
+    EXAMPLE_REVISION_4,
+    HumanDocumentType
+} from '../../plugins/test-utils/index.mjs';
 import { compressObject } from 'jsonschema-key-compression';
 
 addRxPlugin(RxDBQueryBuilderPlugin);
@@ -165,7 +168,7 @@ declare type NestedDoc = {
 
 const testContext = 'rx-storage-implementations.test.ts';
 
-config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.storage.name + ')', () => {
+describeParallel('rx-storage-implementations.test.ts (implementation: ' + config.storage.name + ')', () => {
     describe('RxStorageInstance', () => {
         describe('creation', () => {
             it('open and close', async () => {
@@ -185,7 +188,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 assert.strictEqual(storageInstance.collectionName, collectionName);
                 assert.strictEqual(storageInstance.databaseName, databaseName);
 
-                await storageInstance.close();
+                await storageInstance.remove();
             });
             it('open many instances on the same database name', async () => {
                 const databaseName = randomCouchString(12);
@@ -202,7 +205,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                         devMode: true
                     }))
                 );
-                await Promise.all(instances.map(instance => instance.close()));
+                await Promise.all(instances.map(instance => instance.remove()));
             });
             /**
              * This test ensures that people do not accidentally set
@@ -240,9 +243,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     return;
                 }
                 const schema = getPseudoSchemaForVersion<TestDocType>(0, 'key');
-                schema.attachments = {
-                    encrypted: true
-                };
+                schema.encrypted = ['value'];
                 let hasThrown = false;
                 try {
                     await config.storage.getStorage().createStorageInstance<TestDocType>({
@@ -745,7 +746,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 });
 
                 const docData = Object.assign(
-                    schemaObjects.averageSchema(),
+                    schemaObjects.averageSchemaData(),
                     {
                         _attachments: {},
                         _deleted: false,
@@ -992,7 +993,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                         })
                 );
                 await Promise.all(
-                    storageInstances.map(i => i.close())
+                    storageInstances.map(i => i.remove())
                 );
             });
             // Some storages had problems storing non-utf-8 chars like "é"
@@ -1141,10 +1142,10 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     query
                 );
 
-                const doc1: any = schemaObjects.human();
+                const doc1: any = schemaObjects.humanData();
                 doc1._id = 'aa';
                 doc1.age = 1;
-                const doc2: any = schemaObjects.human();
+                const doc2: any = schemaObjects.humanData();
                 doc2._id = 'bb';
                 doc2.age = 100;
 
@@ -1265,7 +1266,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
         });
         describe('.getQueryMatcher()', () => {
             it('should match the right docs', async () => {
-                const storageInstance = await config.storage.getStorage().createStorageInstance<schemas.HumanDocumentType>({
+                const storageInstance = await config.storage.getStorage().createStorageInstance<HumanDocumentType>({
                     databaseInstanceToken: randomCouchString(10),
                     databaseName: randomCouchString(12),
                     collectionName: randomCouchString(12),
@@ -1275,7 +1276,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     devMode: true
                 });
 
-                const query: FilledMangoQuery<schemas.HumanDocumentType> = {
+                const query: FilledMangoQuery<HumanDocumentType> = {
                     selector: {
                         age: {
                             $gt: 10,
@@ -1293,10 +1294,10 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     query
                 );
 
-                const doc1: any = schemaObjects.human();
+                const doc1: any = schemaObjects.humanData();
                 doc1._id = 'aa';
                 doc1.age = 1;
-                const doc2: any = schemaObjects.human();
+                const doc2: any = schemaObjects.humanData();
                 doc2._id = 'bb';
                 doc2.age = 100;
 
@@ -1329,7 +1330,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     query
                 );
 
-                const doc1: any = schemaObjects.human();
+                const doc1: any = schemaObjects.humanData();
                 doc1._deleted = true;
                 assert.strictEqual(
                     queryMatcher(doc1),
@@ -1717,7 +1718,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     await testQuery(query);
                 }
 
-                storageInstance.close();
+                storageInstance.remove();
             });
             it('should be able to search over a nested object', async () => {
                 const schema = getNestedDocSchema();
@@ -1816,7 +1817,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 const results = await storageInstance.query(preparedQuery);
                 assert.strictEqual(results.documents.length, amount);
 
-                storageInstance.close();
+                storageInstance.remove();
             });
         });
         describe('.count()', () => {
@@ -2061,7 +2062,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     devMode: true
                 });
 
-                const amount = config.isFastMode() ? 100 : 10000;
+                const amount = isFastMode() ? 100 : 10000;
                 const writeRows = new Array(amount)
                     .fill(0)
                     .map(() => ({ document: getWriteData() }));
@@ -2254,7 +2255,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 assert.strictEqual(resultAfterDelete.documents.length, 1);
                 assert.strictEqual(resultAfterDelete.documents[0]._deleted, true);
 
-                storageInstance.close();
+                storageInstance.remove();
             });
             it('should be able to correctly iterate over the checkpoints', async () => {
                 const storageInstance = await config.storage.getStorage().createStorageInstance<TestDocType>({
@@ -2267,7 +2268,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     devMode: true
                 });
 
-                const writeAmount = config.isFastMode() ? 40 : 100;
+                const writeAmount = isFastMode() ? 40 : 100;
                 await storageInstance.bulkWrite(
                     new Array(writeAmount / 5)
                         .fill(0)
@@ -2306,7 +2307,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 assert.strictEqual(Object.keys(docs).length, writeAmount);
                 assert.strictEqual(writesDone, writeAmount);
 
-                storageInstance.close();
+                storageInstance.remove();
             });
         });
         describe('.changeStream()', () => {
@@ -2408,7 +2409,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
 
 
                 sub.unsubscribe();
-                storageInstance.close();
+                storageInstance.remove();
             });
             it('should emit all events', async () => {
                 const storageInstance = await config.storage.getStorage().createStorageInstance<TestDocType>({
@@ -2497,7 +2498,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 assert.ok(lastEvent.previousDocumentData);
 
                 sub.unsubscribe();
-                storageInstance.close();
+                storageInstance.remove();
             });
             it('it should not emit an empty eventBulk when the write had only errors', async () => {
                 const storageInstance = await config.storage.getStorage().createStorageInstance<TestDocType>({
@@ -2604,7 +2605,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 const attachmentDataAfter = await storageInstance.getAttachmentData('foobar', 'foo', writeResult._attachments.foo.digest);
                 assert.strictEqual(attachmentDataAfter, dataStringBase64);
 
-                storageInstance.close();
+                storageInstance.remove();
             });
             it('should return the correct attachment object on all document fetch methods', async () => {
                 const storageInstance = await config.storage.getStorage().createStorageInstance<TestDocType>({
@@ -2967,7 +2968,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                     })
                 );
                 await Promise.all(
-                    storageInstances.map(i => i.close())
+                    storageInstances.map(i => i.remove())
                 );
             });
         });
@@ -3070,7 +3071,7 @@ config.parallel('rx-storage-implementations.test.ts (implementation: ' + config.
                 );
                 assert.ok(nonDeletedDoc[0]);
 
-                await storageInstance.close();
+                await storageInstance.remove();
             });
             it('should at some time return true (when all docs are cleaned up)', async () => {
                 const storageInstance = await config.storage.getStorage().createStorageInstance<TestDocType>({

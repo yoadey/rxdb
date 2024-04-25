@@ -1,9 +1,15 @@
 import assert from 'assert';
-import config, { getEncryptedStorage, getPassword } from './config.ts';
+import config, { describeParallel } from './config.ts';
 import AsyncTestUtil from 'async-test-util';
 
-import * as schemas from '../helper/schemas.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import {
+    schemaObjects,
+    schemas,
+    getPassword,
+    getEncryptedStorage,
+    EncryptedHumanDocumentType,
+    randomStringWithSpecialChars
+} from '../../plugins/test-utils/index.mjs';
 
 import {
     createRxDatabase,
@@ -31,17 +37,17 @@ import { getPullHandler, getPushHandler } from './replication.test.ts';
 import { getRxStorageMemory } from '../../plugins/storage-memory/index.mjs';
 
 
-config.parallel('encryption.test.ts', () => {
+describeParallel('encryption.test.ts', () => {
     async function createEncryptedCollection(
         amount: number = 10,
         useStorage?: typeof storage
-    ): Promise<RxCollection<schemaObjects.EncryptedHumanDocumentType>> {
+    ): Promise<RxCollection<EncryptedHumanDocumentType>> {
         if (useStorage) {
             useStorage = getEncryptedStorage(useStorage);
         } else {
             useStorage = storage;
         }
-        const db = await createRxDatabase<{ encryptedhuman: RxCollection<schemaObjects.EncryptedHumanDocumentType>; }>({
+        const db = await createRxDatabase<{ encryptedhuman: RxCollection<EncryptedHumanDocumentType>; }>({
             name: randomCouchString(10),
             storage: useStorage,
             eventReduce: true,
@@ -58,7 +64,7 @@ config.parallel('encryption.test.ts', () => {
         if (amount > 0) {
             const docsData = new Array(amount)
                 .fill(0)
-                .map(() => schemaObjects.encryptedHuman());
+                .map(() => schemaObjects.encryptedHumanData());
             await collections.encryptedhuman.bulkInsert(docsData);
         }
 
@@ -208,18 +214,18 @@ config.parallel('encryption.test.ts', () => {
             });
             const collection = collections.humanenc;
             assert.ok(isRxCollection(collection));
-            db.destroy();
+            db.remove();
         });
     });
     describe('RxCollection.insert()', () => {
         it('should insert one encrypted value (string)', async () => {
             const c = await createEncryptedCollection(0);
-            const agent = schemaObjects.encryptedHuman();
+            const agent = schemaObjects.encryptedHumanData();
             await c.insert(agent);
             const doc = await c.findOne().exec(true);
             const secret = doc.get('secret');
             assert.strictEqual(agent.secret, secret);
-            c.database.destroy();
+            c.database.remove();
         });
         it('should insert one encrypted value (object)', async () => {
             const db = await createRxDatabase({
@@ -232,19 +238,49 @@ config.parallel('encryption.test.ts', () => {
                     schema: schemas.encryptedObjectHuman
                 }
             });
-            const agent = schemaObjects.encryptedObjectHuman();
+            const agent = schemaObjects.encryptedObjectHumanData();
             await c.enchuman.insert(agent);
             const doc = await c.enchuman.findOne().exec();
             const secret = doc.get('secret');
             assert.strictEqual(agent.secret.name, secret.name);
             assert.strictEqual(agent.secret.subname, secret.subname);
-            db.destroy();
+            db.remove();
+        });
+        /**
+         * @link https://github.com/pubkey/rxdb/issues/5624
+         */
+        it('#5624 insert with really big encrypted string', async () => {
+            if (
+                config.storage.name === 'foundationdb' ||
+                config.storage.name === 'denokv'
+            ) {
+                // Error: Value length exceeds limit
+                return;
+            }
+            const db = await createRxDatabase({
+                name: randomCouchString(10),
+                storage,
+                password: await getPassword()
+            });
+            const c = await db.addCollections({
+                enchuman: {
+                    schema: schemas.encryptedHuman
+                }
+            });
+            const secret = randomStringWithSpecialChars(1000 * 250);
+            const agent = schemaObjects.encryptedHumanData();
+            agent.secret = secret;
+            await c.enchuman.insert(agent);
+            const doc = await c.enchuman.findOne().exec();
+            const secretAfter = doc.get('secret');
+            assert.strictEqual(secret, secretAfter);
+            db.remove();
         });
     });
     describe('RxDocument.save()', () => {
         it('should save one encrypted value (string)', async () => {
             const c = await createEncryptedCollection(0);
-            const agent = schemaObjects.encryptedHuman();
+            const agent = schemaObjects.encryptedHumanData();
             await c.insert(agent);
             const doc = await c.findOne().exec(true);
             const secret = doc.get('secret');
@@ -254,7 +290,7 @@ config.parallel('encryption.test.ts', () => {
             await doc.incrementalPatch({ secret: newSecret });
             const docNew = await c.findOne().exec(true);
             assert.strictEqual(newSecret, docNew.get('secret'));
-            c.database.destroy();
+            c.database.remove();
         });
         it('should save one encrypted value (object)', async () => {
             const db = await createRxDatabase({
@@ -267,7 +303,7 @@ config.parallel('encryption.test.ts', () => {
                     schema: schemas.encryptedObjectHuman
                 }
             });
-            const agent = schemaObjects.encryptedObjectHuman();
+            const agent = schemaObjects.encryptedObjectHumanData();
             await c.enchuman.insert(agent);
             const newSecret = {
                 name: randomCouchString(10),
@@ -284,7 +320,7 @@ config.parallel('encryption.test.ts', () => {
 
             assert.strictEqual(newSecret.name, docNew.get('secret.name'));
             assert.strictEqual(newSecret.subname, docNew.get('secret.subname'));
-            db.destroy();
+            db.remove();
         });
     });
     describe('replication', () => {
@@ -298,7 +334,7 @@ config.parallel('encryption.test.ts', () => {
             const clientCollection = await createEncryptedCollection(0, getRxStorageMemory());
             const remoteCollection = await createEncryptedCollection(0, getRxStorageMemory());
             const secret = 'secret-' + randomCouchString(10);
-            const human = schemaObjects.encryptedHuman(secret);
+            const human = schemaObjects.encryptedHumanData(secret);
             await remoteCollection.insert(human);
 
             const replicationState = replicateRxCollection({
@@ -306,7 +342,7 @@ config.parallel('encryption.test.ts', () => {
                 replicationIdentifier: randomCouchString(10),
                 live: true,
                 pull: {
-                    handler: getPullHandler<schemaObjects.EncryptedHumanDocumentType>(remoteCollection as any)
+                    handler: getPullHandler<EncryptedHumanDocumentType>(remoteCollection as any)
                 },
                 push: {
                     handler: getPushHandler(remoteCollection as any)
@@ -381,7 +417,7 @@ config.parallel('encryption.test.ts', () => {
                 password
             });
             assert.ok(db3);
-            await db3.destroy();
+            await db3.remove();
         });
         it('#917 Unexpected end of JSON input', async () => {
             const schema: RxJsonSchema<{ name: string; color: string; happy: boolean; }> = {
@@ -435,7 +471,7 @@ config.parallel('encryption.test.ts', () => {
             // will throw exception
             await collection.findOne().exec();
 
-            db.destroy();
+            db.remove();
         });
         describe('#157 Cannot sort on field(s) "XXX" when using the default index', () => {
             it('schema example 1', async () => {
@@ -492,7 +528,7 @@ config.parallel('encryption.test.ts', () => {
 
                 const resultsAll = await queryAll.exec();
                 assert.strictEqual(resultsAll.length, 0);
-                db.destroy();
+                db.remove();
             });
             it('schema example 2', async () => {
                 const schema: RxJsonSchema<{ id: string; value: number; }> = {
@@ -536,7 +572,7 @@ config.parallel('encryption.test.ts', () => {
 
                 const resultsAll = await queryAll.exec();
                 assert.strictEqual(resultsAll.length, 0);
-                db.destroy();
+                db.remove();
             });
         });
     });

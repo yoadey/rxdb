@@ -1,12 +1,13 @@
 import { IdleQueue } from 'custom-idle-queue';
 import type { LeaderElector } from 'broadcast-channel';
-import type { CollectionsOfDatabase, RxDatabase, RxCollectionCreator, RxCollection, RxDumpDatabase, RxDumpDatabaseAny, BackupOptions, RxStorage, RxStorageInstance, RxChangeEvent, RxDatabaseCreator, RxChangeEventBulk, RxDocumentData, RxCleanupPolicy, InternalStoreDocType, InternalStoreStorageTokenDocType, RxTypeError, RxError, HashFunction, MaybePromise } from './types/index.d.ts';
+import type { CollectionsOfDatabase, RxDatabase, RxCollectionCreator, RxCollection, RxDumpDatabase, RxDumpDatabaseAny, BackupOptions, RxStorage, RxStorageInstance, RxChangeEvent, RxDatabaseCreator, RxChangeEventBulk, RxDocumentData, RxCleanupPolicy, InternalStoreDocType, InternalStoreStorageTokenDocType, RxTypeError, RxError, HashFunction, MaybePromise, RxState } from './types/index.d.ts';
 import { Subject, Subscription, Observable } from 'rxjs';
 import { WrappedRxStorageInstance } from './rx-storage-helper.ts';
 import type { RxBackupState } from './plugins/backup/index.ts';
 import { ObliviousSet } from 'oblivious-set';
 import type { RxMigrationState } from './plugins/migration-schema/index.ts';
-export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collections = CollectionsOfDatabase> {
+import type { RxReactivityFactory } from './types/plugins/reactivity.d.ts';
+export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collections = CollectionsOfDatabase, Reactivity = unknown> {
     readonly name: string;
     /**
      * Uniquely identifies the instance
@@ -26,8 +27,9 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
     readonly hashFunction: HashFunction;
     readonly cleanupPolicy?: Partial<RxCleanupPolicy> | undefined;
     readonly allowSlowCount?: boolean | undefined;
+    readonly reactivity?: RxReactivityFactory<any> | undefined;
     readonly idleQueue: IdleQueue;
-    readonly rxdbVersion = "15.2.0";
+    readonly rxdbVersion = "15.18.2";
     /**
      * Contains all known non-closed storage instances
      * that belong to this database.
@@ -43,8 +45,9 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
     /**
      * Stores information documents about the collections of the database
      */
-    internalStore: RxStorageInstance<InternalStoreDocType, Internals, InstanceCreationOptions>, hashFunction: HashFunction, cleanupPolicy?: Partial<RxCleanupPolicy> | undefined, allowSlowCount?: boolean | undefined);
+    internalStore: RxStorageInstance<InternalStoreDocType, Internals, InstanceCreationOptions>, hashFunction: HashFunction, cleanupPolicy?: Partial<RxCleanupPolicy> | undefined, allowSlowCount?: boolean | undefined, reactivity?: RxReactivityFactory<any> | undefined);
     get $(): Observable<RxChangeEvent<any>>;
+    getReactivityFactory(): RxReactivityFactory<Reactivity>;
     _subs: Subscription[];
     /**
      * Because having unhandled exceptions would fail,
@@ -61,6 +64,9 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
     onDestroy: (() => MaybePromise<any>)[];
     destroyed: boolean;
     collections: Collections;
+    states: {
+        [name: string]: RxState<any, Reactivity>;
+    };
     readonly eventBulks$: Subject<RxChangeEventBulk<any>>;
     private observable$;
     /**
@@ -108,7 +114,7 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
     addCollections<CreatedCollections = Partial<Collections>>(collectionCreators: {
         [key in keyof CreatedCollections]: RxCollectionCreator<any>;
     }): Promise<{
-        [key in keyof CreatedCollections]: RxCollection;
+        [key in keyof CreatedCollections]: RxCollection<any, {}, {}, {}, Reactivity>;
     }>;
     /**
      * runs the given function between idleQueue-locking
@@ -120,6 +126,7 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
      */
     exportJSON(_collections?: string[]): Promise<RxDumpDatabase<Collections>>;
     exportJSON(_collections?: string[]): Promise<RxDumpDatabaseAny<Collections>>;
+    addState<T = any>(_name?: string): Promise<RxState<T, Reactivity>>;
     /**
      * Import the parsed JSON export into the collection.
      * @param _exportedJSON The previously exported data from the `<db>.exportJSON()` method.
@@ -144,7 +151,7 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
      * Returns the names of all removed collections.
      */
     remove(): Promise<string[]>;
-    get asRxDatabase(): RxDatabase<{}, Internals, InstanceCreationOptions>;
+    get asRxDatabase(): RxDatabase<{}, Internals, InstanceCreationOptions, Reactivity>;
 }
 /**
  * Creates the storage instances that are used internally in the database
@@ -153,7 +160,7 @@ export declare class RxDatabaseBase<Internals, InstanceCreationOptions, Collecti
 export declare function createRxDatabaseStorageInstance<Internals, InstanceCreationOptions>(databaseInstanceToken: string, storage: RxStorage<Internals, InstanceCreationOptions>, databaseName: string, options: InstanceCreationOptions, multiInstance: boolean, password?: string): Promise<RxStorageInstance<InternalStoreDocType, Internals, InstanceCreationOptions>>;
 export declare function createRxDatabase<Collections = {
     [key: string]: RxCollection;
-}, Internals = any, InstanceCreationOptions = any>({ storage, instanceCreationOptions, name, password, multiInstance, eventReduce, ignoreDuplicate, options, cleanupPolicy, allowSlowCount, localDocuments, hashFunction }: RxDatabaseCreator<Internals, InstanceCreationOptions>): Promise<RxDatabase<Collections, Internals, InstanceCreationOptions>>;
+}, Internals = any, InstanceCreationOptions = any, Reactivity = unknown>({ storage, instanceCreationOptions, name, password, multiInstance, eventReduce, ignoreDuplicate, options, cleanupPolicy, allowSlowCount, localDocuments, hashFunction, reactivity }: RxDatabaseCreator<Internals, InstanceCreationOptions, Reactivity>): Promise<RxDatabase<Collections, Internals, InstanceCreationOptions, Reactivity>>;
 /**
  * Removes the database and all its known data
  * with all known collections and all internal meta data.
@@ -177,4 +184,4 @@ export declare function isRxDatabaseFirstTimeInstantiated(database: RxDatabase):
  * But we still have to ensure that there have been no errors
  * on database creation.
  */
-export declare function ensureNoStartupErrors(rxDatabase: RxDatabaseBase<any, any, any>): Promise<void>;
+export declare function ensureNoStartupErrors(rxDatabase: RxDatabaseBase<any, any, any, any>): Promise<void>;

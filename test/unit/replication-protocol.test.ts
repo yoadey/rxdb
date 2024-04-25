@@ -1,7 +1,6 @@
 import assert from 'assert';
 
-import config from './config.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import config, { describeParallel } from './config.ts';
 import {
     randomCouchString,
     now,
@@ -34,6 +33,7 @@ import {
     RxAttachmentWriteData,
     flatClone,
     requestIdlePromise,
+    promiseSeries,
     prepareQuery
 } from '../../plugins/core/index.mjs';
 
@@ -42,23 +42,25 @@ import {
     RxLocalDocumentData,
     RX_LOCAL_DOCUMENT_SCHEMA
 } from '../../plugins/local-documents/index.mjs';
-import * as schemas from '../helper/schemas.ts';
+import {
+    schemaObjects,
+    schemas,
+    isFastMode,
+    EXAMPLE_REVISION_3,
+    HumanDocumentType,
+    EXAMPLE_REVISION_2,
+    EXAMPLE_REVISION_1
+} from '../../plugins/test-utils/index.mjs';
 import {
     clone,
     wait,
     waitUntil,
     randomBoolean
 } from 'async-test-util';
-import { HumanDocumentType } from '../helper/schemas.ts';
-import {
-    EXAMPLE_REVISION_1,
-    EXAMPLE_REVISION_2,
-    EXAMPLE_REVISION_3
-} from '../helper/revisions.ts';
 
 const testContext = 'replication-protocol.test.ts';
 
-const useParallel = config.storage.name === 'dexie-worker' ? describe : config.parallel;
+const useParallel = config.storage.name === 'dexie-worker' ? describe : describeParallel;
 
 function ensureReplicationHasNoErrors(replicationState: RxStorageInstanceReplicationState<any>) {
     /**
@@ -117,7 +119,7 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
         //     });
         // }
 
-        if (docA._deleted !== docB._deleted) {
+        if ((docA as any)._deleted !== (docB as any)._deleted) {
             return Promise.resolve({
                 isEqual: false,
                 documentData: input.newDocumentState
@@ -147,7 +149,7 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
     };
     function getDocData(partial: Partial<RxDocumentData<HumanDocumentType>> = {}): RxDocumentData<HumanDocumentType> {
         const docData = Object.assign(
-            schemaObjects.human(),
+            schemaObjects.humanData(),
             partial
         );
         const withMeta: RxDocumentData<HumanDocumentType> = Object.assign(
@@ -260,10 +262,15 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
 
         await cancelRxStorageReplication(replicationState);
 
+        /**
+         * TODO here we should run .remove()
+         * on all instances to ensure we do not fill up the
+         * browser storage limits. But this failed for unknown reason.
+         */
         await Promise.all([
             masterInstance.close(),
             replicationState.input.forkInstance.close(),
-            replicationState.input.metaInstance.close()
+            replicationState.input.metaInstance.remove()
         ]).catch(() => {
             /**
              * Closing the instances might error
@@ -940,7 +947,7 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
             cleanUp(replicationState, masterInstance);
         });
         it('doing many writes on the fork should not lead to many writes on the master', async () => {
-            const writeAmount = config.isFastMode() ? 5 : 50;
+            const writeAmount = isFastMode() ? 5 : 50;
 
             const masterInstance = await createRxStorageInstance(0);
             const forkInstance = await createRxStorageInstance(0);
@@ -1034,7 +1041,7 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
              * makes no sense because we do too less writes
              * to make a difference.
              */
-            if (!config.isFastMode()) {
+            if (!isFastMode()) {
                 assert.ok(
                     /**
                      * Here we do a '<=' instead of just a '<'
@@ -1101,15 +1108,7 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
     });
     describe('stability', () => {
         it('do many writes while replication is running', async () => {
-            if (
-                config.storage.name === 'lokijs' ||
-                config.storage.name === 'denokv'
-            ) {
-                // TODO this test fails in about 1/20 times in lokijs
-                return;
-            }
-
-            const writeAmount = config.isFastMode() ? 5 : 10;
+            const writeAmount = isFastMode() ? 5 : 10;
 
             const masterInstance = await createRxStorageInstance(0);
             const forkInstance = await createRxStorageInstance(0);
@@ -1132,9 +1131,9 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
             const document = getDocData();
             document.passportId = 'foobar';
             const docId = document.passportId;
-            await Promise.all(
+            await promiseSeries(
                 instances
-                    .map(async (instance, idx) => {
+                    .map((instance, idx) => async () => {
                         // insert
                         const docData = Object.assign({}, clone(document), {
                             firstName: idx === 0 ? 'master' : 'fork',
@@ -1197,6 +1196,9 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
             await Promise.all(promises);
 
             await awaitRxStorageReplicationIdle(replicationState);
+            await awaitRxStorageReplicationIdle(replicationState);
+            await wait(50); // TODO we should not need this here
+
             await ensureEqualState(masterInstance, forkInstance);
             assert.strictEqual(
                 replicationState.stats.down.downstreamResyncOnce,
@@ -1285,7 +1287,7 @@ useParallel(testContext + ' (implementation: ' + config.storage.name + ')', () =
             await cleanUp(replicationState, masterInstance);
         });
         it('should not stuck when replicating many document in the initial replication', async () => {
-            const writeAmount = config.isFastMode() ? 40 : 200;
+            const writeAmount = isFastMode() ? 40 : 200;
 
             const masterInstance = await createRxStorageInstance(0);
             const forkInstance = await createRxStorageInstance(0);

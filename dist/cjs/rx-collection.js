@@ -119,10 +119,10 @@ var RxCollectionBase = exports.RxCollectionBase = /*#__PURE__*/function () {
   // overwritten by migration-plugin
   ;
   _proto.migrationNeeded = function migrationNeeded() {
-    throw (0, _index.pluginMissing)('migration');
+    throw (0, _index.pluginMissing)('migration-schema');
   };
   _proto.getMigrationState = function getMigrationState() {
-    throw (0, _index.pluginMissing)('migration');
+    throw (0, _index.pluginMissing)('migration-schema');
   };
   _proto.startMigration = function startMigration(batchSize = 10) {
     return this.getMigrationState().startMigration(batchSize);
@@ -526,7 +526,7 @@ var RxCollectionBase = exports.RxCollectionBase = /*#__PURE__*/function () {
     await this.destroy();
     await (0, _rxCollectionHelper.removeCollectionStorages)(this.database.storage, this.database.internalStore, this.database.token, this.database.name, this.name, this.database.password, this.database.hashFunction);
   };
-  (0, _createClass2.default)(RxCollectionBase, [{
+  return (0, _createClass2.default)(RxCollectionBase, [{
     key: "insert$",
     get: function () {
       return this.$.pipe((0, _rxjs.filter)(cE => cE.operation === 'INSERT'));
@@ -556,7 +556,6 @@ var RxCollectionBase = exports.RxCollectionBase = /*#__PURE__*/function () {
       return this;
     }
   }]);
-  return RxCollectionBase;
 }();
 /**
  * adds the hook-functions to the collections prototype

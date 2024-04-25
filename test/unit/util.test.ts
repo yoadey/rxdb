@@ -20,7 +20,11 @@ import {
     getBlobSize,
     blobToBase64String,
     createBlobFromBase64,
-    overwritable
+    overwritable,
+    toWithDeleted,
+    stringToArrayBuffer,
+    arrayBufferToString,
+    clone
 } from '../../plugins/core/index.mjs';
 import config from './config.ts';
 
@@ -33,7 +37,12 @@ import {
     jsSha256,
     canUseCryptoSubtle
 } from '../../plugins/utils/index.mjs';
-import { EXAMPLE_REVISION_1 } from '../helper/revisions.ts';
+import {
+    isFastMode,
+    isBun,
+    EXAMPLE_REVISION_1,
+    randomStringWithSpecialChars
+} from '../../plugins/test-utils/index.mjs';
 
 import { BIG_BASE64 } from '../helper/big-base64.ts';
 
@@ -56,7 +65,7 @@ describe('util.test.js', () => {
             assert.strictEqual(typeof hash, 'string');
             assert.ok(hash.length > 0);
         });
-        it('must have enabled canUseCryptoSubtle', ()=> {
+        it('must have enabled canUseCryptoSubtle', () => {
             assert.ok(canUseCryptoSubtle);
         });
         it('both versions must return the exact same value', async () => {
@@ -88,7 +97,7 @@ describe('util.test.js', () => {
         ];
         cloneMethods.forEach(method => {
             it('run once', async () => {
-                if (!config.isFastMode()) {
+                if (!isFastMode()) {
                     await wait(200);
                 }
                 let obj = {
@@ -113,7 +122,7 @@ describe('util.test.js', () => {
                 };
                 const start = performance.now();
                 let t = 0;
-                const runs = config.isFastMode() ? 100 : 2000;
+                const runs = isFastMode() ? 100 : 2000;
                 while (t < runs) {
                     t++;
                     method(obj);
@@ -289,7 +298,7 @@ describe('util.test.js', () => {
         });
     });
     describe('.deepFreezeWhenDevMode()', () => {
-        if (config.isBun) {
+        if (isBun) {
             // TODO for somehow bun has no strict mode here
             return;
         }
@@ -314,6 +323,14 @@ describe('util.test.js', () => {
             };
             const frozen = deepFreezeWhenDevMode(obj);
             assert.ok(obj === frozen);
+        });
+        it('cloning a deep-frozen object should make it mutateable', () => {
+            const obj = {
+                foo: 'bar'
+            };
+            const frozen = deepFreezeWhenDevMode(obj);
+            const cloned = clone(frozen);
+            cloned.foo = 'bar2';
         });
     });
     describe('.sortDocumentsByLastWriteTime()', () => {
@@ -456,6 +473,35 @@ describe('util.test.js', () => {
                 objectPathMonad('not.here.nes.ted')(docData),
                 undefined
             );
+        });
+    });
+    describe('.toWithDeleted()', () => {
+        it('should have the _deleted flag set', () => {
+            assert.strictEqual(toWithDeleted({})._deleted, false);
+            assert.strictEqual(toWithDeleted({ _deleted: false })._deleted, false);
+            assert.strictEqual(toWithDeleted({ _deleted: true })._deleted, true);
+        });
+        it('should have _attachments and _meta and _rev removed', () => {
+            assert.strictEqual(toWithDeleted({ _meta: {} })._meta, undefined);
+            assert.strictEqual(toWithDeleted({ _attachments: {} })._attachments, undefined);
+            assert.strictEqual(toWithDeleted({ _rev: 'aa' })._rev, undefined);
+        });
+    });
+    describe('.arrayBufferToString() / .stringToArrayBuffer()', () => {
+        it('should return the correct result', () => {
+            const str = randomStringWithSpecialChars(1000);
+            const buffer = stringToArrayBuffer(str);
+            const back = arrayBufferToString(buffer);
+            assert.strictEqual(str, back);
+        });
+        /**
+         * @link https://github.com/pubkey/rxdb/issues/5624
+         */
+        it('#5624 should work with really big strings', () => {
+            const str = randomStringWithSpecialChars(1000 * 250);
+            const buffer = stringToArrayBuffer(str);
+            const back = arrayBufferToString(buffer);
+            assert.strictEqual(str, back);
         });
     });
 });

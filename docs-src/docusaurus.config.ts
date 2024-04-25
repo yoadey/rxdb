@@ -34,16 +34,32 @@ const config: Config = {
     defaultLocale: 'en',
     locales: ['en'],
   },
-    plugins: [['./docusaurus-lunr-search-main/src/', {
-        excludeRoutes:['blog', 'releases']
-    }]],
+  plugins: [['./docusaurus-lunr-search-main/src/', {
+    excludeRoutes: ['blog', 'releases']
+  }]],
 
   scripts: [
+    // {
+    //   id: 'CookieDeclaration',
+    //   src: 'https://consent.cookiebot.com/c429ebbd-6e92-4150-b700-ca186e06bc7c/cd.js',
+    //   type: 'text/javascript'
+    // }
     {
-      src:
-        '/js/analytics.js',
+      id: 'Cookiebot',
+      src: 'https://consent.cookiebot.com/uc.js?cbid=c429ebbd-6e92-4150-b700-ca186e06bc7c',
+      'data-cbid': 'c429ebbd-6e92-4150-b700-ca186e06bc7c',
+      'data-blockingmode': 'auto',
+      type: 'text/javascript',
+      async: true
+    },
+    {
+      src: '/js/analytics.js',
       async: true,
     },
+    // {
+    //   src: 'https://www.googletagmanager.com/gtag/js?id=G-62D63SY3S0',
+    //   async: true,
+    // },
   ],
 
   presets: [
@@ -55,11 +71,15 @@ const config: Config = {
           trackingID: 'G-62D63SY3S0',
           anonymizeIP: false,
         },
+        googleTagManager: {
+          containerId: 'GTM-PL63TR5',
+        },
         docs: {
           sidebarPath: './sidebars.js',
-          editUrl: 'https://github.com/pubkey/rxdb/tree/master/docs-src/',
           routeBasePath: '',
           path: './docs',
+          // I disabled the editUrl because it just confuses users and does not look professional
+          // editUrl: 'https://github.com/pubkey/rxdb/tree/master/docs-src/',
         },
         // blog: {
         //   showReadingTime: true,

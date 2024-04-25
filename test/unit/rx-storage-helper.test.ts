@@ -1,6 +1,5 @@
 
-import config from './config.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import config, { describeParallel } from './config.ts';
 import {
     randomCouchString,
     now,
@@ -9,19 +8,21 @@ import {
     getPrimaryFieldOfPrimaryKey,
     BulkWriteRow
 } from '../../plugins/core/index.mjs';
-import * as schemas from '../helper/schemas.ts';
 import {
-    EXAMPLE_REVISION_1
-} from '../helper/revisions.ts';
+    schemaObjects,
+    schemas,
+    isFastMode,
+    EXAMPLE_REVISION_1,
+    HumanDocumentType
+} from '../../plugins/test-utils/index.mjs';
 import assert from 'assert';
 
 
 const testContext = 'rx-storage-helper.test.ts';
 
-config.parallel('rx-storage-helper.test.ts', () => {
+describeParallel('rx-storage-helper.test.ts', () => {
     describe('.categorizeBulkWriteRows()', () => {
         it('performance', async () => {
-
             const instance = await config.storage.getStorage().createStorageInstance({
                 databaseInstanceToken: randomCouchString(10),
                 databaseName: randomCouchString(10),
@@ -32,10 +33,10 @@ config.parallel('rx-storage-helper.test.ts', () => {
                 devMode: true
             });
             const primaryPath = getPrimaryFieldOfPrimaryKey(schemas.human.primaryKey);
-            const amount = config.isFastMode() ? 100 : 10000;
-            const writeRows: BulkWriteRow<schemas.HumanDocumentType>[] = new Array(amount).fill(0).map(() => {
+            const amount = isFastMode() ? 100 : 10000;
+            const writeRows: BulkWriteRow<HumanDocumentType>[] = new Array(amount).fill(0).map(() => {
                 const document = Object.assign(
-                    schemaObjects.human(),
+                    schemaObjects.humanData(),
                     {
                         _deleted: false,
                         _rev: EXAMPLE_REVISION_1,
@@ -66,7 +67,7 @@ config.parallel('rx-storage-helper.test.ts', () => {
 
 
             assert.ok(typeof time === 'number');
-            instance.close();
+            instance.remove();
         });
     });
 });

@@ -3,13 +3,16 @@ import * as fs from 'node:fs';
 
 import assert from 'assert';
 import { waitUntil } from 'async-test-util';
-import config from './config.ts';
+import config, { getRootPath } from './config.ts';
 
-import * as schemaObjects from '../helper/schema-objects.ts';
 import {
     addRxPlugin, createBlob
 } from '../../plugins/core/index.mjs';
-import { createAttachments } from '../helper/humans-collection.ts';
+import {
+    schemaObjects,
+    isNode,
+    createAttachments
+} from '../../plugins/test-utils/index.mjs';
 import {
     backupSingleDocument,
     clearFolder,
@@ -20,15 +23,13 @@ import { BackupMetaFileContent, RxBackupWriteEvent } from '../../plugins/core/in
 
 describe('backup.test.ts', () => {
 
-    if (!config.platform.isNode()) {
+    if (!isNode) {
         // backup to filesystem only works on node.js not in browsers
         return;
     }
 
-    console.log('bbbackup 1');
-
     const backupRootPath = path.join(
-        config.rootPath,
+        getRootPath(),
         'test_tmp',
         '_backups'
     );
@@ -158,7 +159,7 @@ describe('backup.test.ts', () => {
             });
             await backupState.awaitInitialBackup();
 
-            const doc2 = await collection.insert(schemaObjects.human());
+            const doc2 = await collection.insert(schemaObjects.humanData());
 
             await waitUntil(() => {
                 return fs.existsSync(path.join(directory, doc2.primary));

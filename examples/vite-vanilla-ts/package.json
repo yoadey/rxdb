@@ -14,12 +14,12 @@
     "test:e2e": "testcafe chrome -e test/ --hostname localhost --selector-timeout 8000 --retry-test-pages"
   },
   "devDependencies": {
-    "async-test-util": "2.2.1",
+    "async-test-util": "2.4.0",
     "concurrently": "8.2.2",
     "copyfiles": "2.4.1",
     "testcafe": "3.5.0",
-    "typescript": "5.3.3",
-    "vite": "5.0.11",
+    "typescript": "5.4.5",
+    "vite": "5.2.10",
     "vite-plugin-top-level-await": "1.4.1"
   },
   "dependencies": {

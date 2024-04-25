@@ -7,7 +7,9 @@ slug: rx-storage-worker.html
 
 With the worker plugin, you can put the `RxStorage` of your database inside of a WebWorker (in browsers) or a Worker Thread (in node.js). By doing so, you can take CPU load from the main process and move it into the worker's process which can improve the perceived performance of your application. Notice that for browsers, it is recommend to use the [SharedWorker](./rx-storage-shared-worker.md) instead to get a better performance.
 
-**NOTICE:** This plugin is part of [👑 RxDB premium](/premium). It is not part of the default RxDB module.
+:::note Premium
+This plugin is part of [RxDB Premium 👑](/premium). It is not part of the default RxDB module.
+:::
 
 ## On the worker process
 
@@ -65,7 +67,7 @@ const database = await createRxDatabase({
 
 The `worker.js` must be a self containing JavaScript file that contains all dependencies in a bundle.
 To make it easier for you, RxDB ships with pre-bundles worker files that are ready to use.
-You can find them in the folder `node_modules/rxdb-premium/dist/workers` after you have installed the [👑 RxDB Premium Plugin](/premium). From there you can copy them to a location where it can be served from the webserver and then use their path to create the `RxDatabase`.
+You can find them in the folder `node_modules/rxdb-premium/dist/workers` after you have installed the [RxDB Premium 👑 Plugin](/premium). From there you can copy them to a location where it can be served from the webserver and then use their path to create the `RxDatabase`.
 
 Any valid `worker.js` JavaScript file can be used both, for normal Workers and SharedWorkers.
 
@@ -89,6 +91,63 @@ const database = await createRxDatabase({
 });
 ```
 
+## Building a custom worker
+
+The easiest way to bundle a custom `worker.js` file is by using webpack. Here is the webpack-config that is also used for the prebuild workers:
+
+```ts
+// webpack.config.js
+const path = require('path');
+const TerserPlugin = require('terser-webpack-plugin');
+const projectRootPath = path.resolve(
+    __dirname,
+    '../../' // path from webpack-config to the root folder of the repo
+);
+const babelConfig = require(path.join(projectRootPath, 'babel.config'));
+const baseDir = './dist/workers/'; // output path
+module.exports = {
+    target: 'webworker',
+    entry: {
+        'my-custom-worker': baseDir + 'my-custom-worker.js',
+    },
+    output: {
+        filename: '[name].js',
+        clean: true,
+        path: path.resolve(
+            projectRootPath,
+            'dist/workers'
+        ),
+    },
+    mode: 'production',
+    module: {
+        rules: [
+            {
+                test: /\.tsx?$/,
+                exclude: /(node_modules)/,
+                use: {
+                    loader: 'babel-loader',
+                    options: babelConfig
+                }
+            }
+        ],
+    },
+    resolve: {
+        extensions: ['.tsx', '.ts', '.js', '.mjs', '.mts']
+    },
+    optimization: {
+        moduleIds: 'deterministic',
+        minimize: true,
+        minimizer: [new TerserPlugin({
+            terserOptions: {
+                format: {
+                    comments: false,
+                },
+            },
+            extractComments: false,
+        })],
+    }
+};
+```
 
 ## One worker per database
 
@@ -115,3 +174,30 @@ const databaseTwo = await createRxDatabase({
 ```
 
 
+## Passing in a Worker instance
+
+Instead of setting an url as `workerInput`, you can also specify a function that returns a new `Worker` instance when called.
+
+```ts
+getRxStorageWorker({
+    workerInput: () => new Worker('path/to/worker.js')
+})
+```
+
+This can be helpful for environments where the worker is build dynamically by the bundler. For example in angular you would create a `my-custom.worker.ts` file that contains a custom build worker and then import it. 
+
+```ts
+const storage = getRxStorageWorker({
+    workerInput: () => new Worker(new URL('./my-custom.worker', import.meta.url)),
+});
+```
+
+```ts
+//> my-custom.worker.ts
+import { exposeWorkerRxStorage } from 'rxdb-premium/plugins/storage-worker';
+import { getRxStorageLoki } from 'rxdb/plugins/storage-lokijs';
+
+exposeWorkerRxStorage({
+    storage: getRxStorageLoki()
+});
+```

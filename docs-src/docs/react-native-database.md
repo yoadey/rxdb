@@ -11,7 +11,9 @@ React Native provides a cross-platform JavaScript runtime that runs on different
 In difference to the JavaScript runtime of browsers, React Native does not support all HTML5 APIs and so it is not possible to use browser storage possibilities like localstorage, cookies, WebSQL or IndexedDB.
 Instead a different storage solution must be chosen that does not come directly with React Native itself but has to be installed as a library or plugin.
 
-**NOTICE:** You are reading this inside of the [RxDB](https://rxdb.info/) documentation, so everything might be opinionated.
+:::note
+You are reading this inside of the [RxDB](https://rxdb.info/) documentation, so everything might be opinionated.
+:::
 
 <p align="center">
   <img src="./files/icons/react-native.png" alt="React Native" width="20" />
@@ -144,6 +146,7 @@ import { open } from 'react-native-quick-sqlite';
 
 // create database
 const myRxDatabase = await createRxDatabase({
+    // Instead of a simple name, you can use a folder path to determine the database location 
     name: 'exampledb',
     multiInstance: false, // <- Set this to false when using RxDB in React Native
     storage: getRxStorageSQLite({
@@ -198,9 +201,9 @@ class Post extends Model {
 }
 ```
 
-WatermelonDB also [supports replication](https://nozbe.github.io/WatermelonDB/Advanced/Sync.html) but the sync protocol is pretty complex because on how it resolves conflicts. I recommend to watch [this video](https://www.youtube.com/watch?v=uFvHURTRLxQ) to learn how the replication works.
+WatermelonDB also supports replication but the sync protocol is pretty complex because on how it resolves conflicts. I recommend to watch [this video](https://www.youtube.com/watch?v=uFvHURTRLxQ) to learn how the replication works.
 
-According to the roadmap, despite being essentially feature-complete, WatermelonDB is still on the `0.xx` version and intends to switch to a `1.x.x` version as once it [reaches a long-term stable API](https://nozbe.github.io/WatermelonDB/Roadmap.html).
+According to the roadmap, despite being essentially feature-complete, WatermelonDB is still on the `0.xx` version and intends to switch to a `1.x.x` version as once it reaches a long-term stable API.
 
 ### Firebase / Firestore
 
@@ -224,6 +227,6 @@ To get started with Firestore in React Native, it is recommended to use the [Rea
 
 ## Follow up
 
-- Check out the [RxDB React Native example](https://github.com/pubkey/rxdb/tree/master/examples/react-native)
+- A good way to learn using RxDB database with React Native is to check out the [RxDB React Native example](https://github.com/pubkey/rxdb/tree/master/examples/react-native) and use that as a tutorial.
 - If you haven't done so yet, you should start learning about RxDB with the [Quickstart Tutorial](./quickstart.md).
 - There is a followup list of other [client side database alternatives](./alternatives.md) that might work with React Native.

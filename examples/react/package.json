@@ -2,7 +2,7 @@
   "name": "rxdb-example-react",
   "version": "3.0.0",
   "dependencies": {
-    "async-test-util": "2.2.1",
+    "async-test-util": "2.4.0",
     "babel-polyfill": "6.26.0",
     "concurrently": "8.2.2",
     "pouchdb-server": "4.2.0",
@@ -15,7 +15,7 @@
     "react-scripts": "5.0.1",
     "rimraf": "5.0.5",
     "testcafe": "3.5.0",
-    "local-web-server": "5.3.1"
+    "local-web-server": "5.3.3"
   },
   "scripts": {
     "preinstall": "npm run preinstall:rxdb",

@@ -43,13 +43,13 @@ jobs:
           git config --local user.name "github-actions[bot]"
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v4.0.1
+        uses: actions/setup-node@v4.0.2
         with:
           node-version-file: ".nvmrc"
           registry-url: "https://registry.npmjs.org"
 
       - name: Reuse npm cache folder
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-node-modules
         with:
@@ -111,7 +111,7 @@ jobs:
       # because it otherwise does not know
       # about the tag and add the old source code to the release.
       # This might be a bug.
-      - uses: ncipollo/release-action@v1.13.0
+      - uses: ncipollo/release-action@v1.14.0
         with:
           prerelease: ${{ steps.vars.outputs.prerelease }}
           tag: ${{github.event.inputs.version}}
@@ -130,13 +130,13 @@ jobs:
           args: "@everyone A new RxDB version has been released: https://github.com/pubkey/rxdb/releases/tag/${{github.event.inputs.version}}"
 
       # @link https://github.com/marketplace/actions/send-tweet-action
-      - name: Twitter notification
-        # To not spam users too much, we only do this on major and minor releases
-        if: steps.vars.outputs.prerelease == 'false' && steps.vars.outputs.nonPatchRelease == 'true'
-        uses: ethomson/send-tweet-action@v1
-        with:
-          status: "A new #RxDB version ${{github.event.inputs.version}} has been released: https://github.com/pubkey/rxdb/releases/tag/${{github.event.inputs.version}}"
-          consumer-key: ${{ secrets.TWITTER_CONSUMER_API_KEY }}
-          consumer-secret: ${{ secrets.TWITTER_CONSUMER_API_SECRET }}
-          access-token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
-          access-token-secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}
+#      - name: Twitter notification
+#        # To not spam users too much, we only do this on major and minor releases
+#        if: steps.vars.outputs.prerelease == 'false' && steps.vars.outputs.nonPatchRelease == 'true'
+#        uses: ethomson/send-tweet-action@v1
+#        with:
+#          status: "A new #RxDB version ${{github.event.inputs.version}} has been released: https://github.com/pubkey/rxdb/releases/tag/${{github.event.inputs.version}}"
+#          consumer-key: ${{ secrets.TWITTER_CONSUMER_API_KEY }}
+#          consumer-secret: ${{ secrets.TWITTER_CONSUMER_API_SECRET }}
+#          access-token: ${{ secrets.TWITTER_ACCESS_TOKEN }}
+#          access-token-secret: ${{ secrets.TWITTER_ACCESS_TOKEN_SECRET }}

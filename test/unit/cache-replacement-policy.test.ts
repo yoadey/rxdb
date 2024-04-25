@@ -1,9 +1,10 @@
 import assert from 'assert';
-import config from './config.ts';
 import AsyncTestUtil, { wait, waitUntil } from 'async-test-util';
-
-import * as humansCollection from '../helper/humans-collection.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import { describeParallel } from './config.ts';
+import {
+    schemaObjects,
+    humansCollection
+} from '../../plugins/test-utils/index.mjs';
 import {
     defaultCacheReplacementPolicyMonad,
     countRxQuerySubscribers,
@@ -15,7 +16,7 @@ import {
 import { BehaviorSubject, Subscription } from 'rxjs';
 import { mergeMap, shareReplay, switchMap } from 'rxjs/operators';
 
-config.parallel('cache-replacement-policy.test.js', () => {
+describeParallel('cache-replacement-policy.test.js', () => {
     function clearQueryCache(collection: RxCollection) {
         const queryCache = collection._queryCache;
         queryCache._map = new Map();
@@ -29,7 +30,7 @@ config.parallel('cache-replacement-policy.test.js', () => {
             await uncachedQuery.exec();
             clearQueryCache(col);
 
-            await col.insert(schemaObjects.human());
+            await col.insert(schemaObjects.humanData());
             const res = await uncachedQuery.exec();
             assert.strictEqual(res.length, 1);
             col.database.destroy();
@@ -44,7 +45,7 @@ config.parallel('cache-replacement-policy.test.js', () => {
             clearQueryCache(col);
 
             await AsyncTestUtil.waitUntil(() => emitted.length === 1);
-            await col.insert(schemaObjects.human());
+            await col.insert(schemaObjects.humanData());
             await AsyncTestUtil.waitUntil(() => emitted.length === 2);
             sub.unsubscribe();
             col.database.destroy();
@@ -180,7 +181,7 @@ config.parallel('cache-replacement-policy.test.js', () => {
 
 
             subs.forEach(sub => sub.unsubscribe());
-            col.database.destroy();
+            col.database.remove();
         });
         it('should remove the unexecuted ones after unExecutedLifetime', async () => {
             const amount = 4;
@@ -199,7 +200,7 @@ config.parallel('cache-replacement-policy.test.js', () => {
             const cachedQueries = Array.from(col._queryCache._map.values());
             assert.strictEqual(cachedQueries.length, 0);
 
-            col.database.destroy();
+            col.database.remove();
         });
         it('should remove the oldest ones', async () => {
             const col = await humansCollection.create(0);
@@ -234,7 +235,7 @@ config.parallel('cache-replacement-policy.test.js', () => {
             assert.deepStrictEqual(cachedQueries, newerQueries);
             assert.strictEqual(cachedQueries.length, amount);
 
-            col.database.destroy();
+            col.database.remove();
         });
     });
     describe('.triggerCacheReplacement()', () => {
@@ -282,7 +283,7 @@ config.parallel('cache-replacement-policy.test.js', () => {
             });
             assert.strictEqual(runs, 2);
 
-            col.database.destroy();
+            col.database.remove();
         });
     });
 });

@@ -150,7 +150,8 @@ export function wrappedKeyCompressionStorage<Internals, InstanceCreationOptions>
 
                 const compressionState = getCompressionStateByRxJsonSchema(params.schema);
                 function modifyToStorage(docData: RxDocumentWriteData<RxDocType>) {
-                    return compressDocumentData(compressionState, docData);
+                    const ret = compressDocumentData(compressionState, docData);
+                    return ret;
                 }
                 function modifyFromStorage(docData: RxDocumentData<any>): Promise<RxDocumentData<RxDocType>> {
                     return decompressDocumentData(compressionState, docData);
@@ -182,19 +183,23 @@ export function wrappedKeyCompressionStorage<Internals, InstanceCreationOptions>
                     modifyFromStorage
                 );
 
-                const queryBefore = wrappedInstance.query.bind(wrappedInstance);
-                wrappedInstance.query = async (preparedQuery: PreparedQuery<RxDocType>) => {
-                    const compressedQuery: FilledMangoQuery<RxDocType> = compressQuery(
-                        compressionState.table,
-                        preparedQuery.query as any
-                    ) as any;
 
-                    const compressedPreparedQuery = prepareQuery(
-                        compressionState.compressedSchema,
-                        compressedQuery
-                    );
-                    return queryBefore(compressedPreparedQuery);
-                }
+                const overwriteMethods = ['query', 'count'] as const;
+                overwriteMethods.forEach(methodName => {
+                    const methodBefore = wrappedInstance[methodName].bind(wrappedInstance);
+                    (wrappedInstance as any)[methodName] = async (preparedQuery: PreparedQuery<RxDocType>) => {
+                        const compressedQuery: FilledMangoQuery<RxDocType> = compressQuery(
+                            compressionState.table,
+                            preparedQuery.query as any
+                        ) as any;
+
+                        const compressedPreparedQuery = prepareQuery(
+                            compressionState.compressedSchema,
+                            compressedQuery
+                        );
+                        return methodBefore(compressedPreparedQuery);
+                    }
+                });
 
                 return wrappedInstance;
             }

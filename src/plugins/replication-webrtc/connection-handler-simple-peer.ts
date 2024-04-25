@@ -15,11 +15,18 @@ import type {
     SyncOptionsWebRTC
 } from './webrtc-types.ts';
 
-import {
-    Instance as SimplePeerInstance,
-    Options as SimplePeerOptions,
-    default as Peer
+import type { 
+    SimplePeer as Peer, 
+    Instance as SimplePeerInstance, 
+    Options as SimplePeerOptions 
 } from 'simple-peer';
+import {
+    default as _Peer
+    // @ts-ignore
+} from 'simple-peer/simplepeer.min.js';
+
+const Peer = _Peer as Peer
+
 import type { RxError, RxTypeError } from '../../types/index.d.ts';
 import { newRxError } from '../../rx-error.ts';
 
@@ -68,6 +75,7 @@ export const DEFAULT_SIGNALING_SERVER = 'wss://' + DEFAULT_SIGNALING_SERVER_HOST
 let defaultServerWarningShown = false;
 
 export type SimplePeerWrtc = SimplePeerOptions['wrtc'];
+export type SimplePeerConfig = SimplePeerOptions['config'];
 
 export type SimplePeerConnectionHandlerOptions = {
     /**
@@ -78,6 +86,7 @@ export type SimplePeerConnectionHandlerOptions = {
      */
     signalingServerUrl?: string;
     wrtc?: SimplePeerWrtc;
+    config?: SimplePeerConfig;
     webSocketConstructor?: WebSocket;
 };
 
@@ -89,8 +98,10 @@ export const SIMPLE_PEER_PING_INTERVAL = 1000 * 60 * 2;
 export function getConnectionHandlerSimplePeer({
     signalingServerUrl,
     wrtc,
+    config,
     webSocketConstructor
 }: SimplePeerConnectionHandlerOptions): WebRTCConnectionHandlerCreator<SimplePeer> {
+    ensureProcessNextTickIsSet();
 
     signalingServerUrl = signalingServerUrl ? signalingServerUrl : DEFAULT_SIGNALING_SERVER;
     webSocketConstructor = webSocketConstructor ? webSocketConstructor as any : WebSocket;
@@ -176,6 +187,7 @@ export function getConnectionHandlerSimplePeer({
                                 const newSimplePeer: SimplePeer = new Peer({
                                     initiator: remotePeerId > ownPeerId,
                                     wrtc,
+                                    config,
                                     trickle: true
                                 }) as any;
                                 newSimplePeer.id = randomCouchString(10);
@@ -274,4 +286,19 @@ export function getConnectionHandlerSimplePeer({
         return handler;
     };
     return creator;
+}
+
+
+/**
+ * Multiple people had problems because it requires to have
+ * the nextTick() method in the runtime. So we check here and
+ * throw a helpful error.
+ */
+export function ensureProcessNextTickIsSet() {
+    if (
+        typeof process === 'undefined' ||
+        typeof process.nextTick !== 'function'
+    ) {
+        throw newRxError('RC7');
+    }
 }

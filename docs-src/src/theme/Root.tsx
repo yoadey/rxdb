@@ -18,6 +18,11 @@ export default function Root({ children }) {
 
 function addCallToActionButton() {
 
+    // do not show on landingpage
+    if(location.pathname === '/'){
+        return;
+    }
+
     const callToActions = [
         {
             text: 'Follow',
@@ -56,7 +61,13 @@ function addCallToActionButton() {
     const callToActionButtonId = 'rxdb-call-to-action-button';
     function setCallToActionOnce() {
         console.log('set call to action button');
-        const randId = Date.now() % callToActions.length;
+
+        const tenMinutes = 1000 * 60*10;
+        const now = Date.now();
+        const timeSlot = (now - (now % tenMinutes)) / tenMinutes;
+        console.log('timeslot ' + timeSlot);
+        const randId = timeSlot % callToActions.length;
+        console.log('randid: ' + randId);
         const callToAction = callToActions[randId];
         const alreadyThere = document.querySelector('.call-to-action');
         if (alreadyThere) {
@@ -74,6 +85,9 @@ function addCallToActionButton() {
         newElementWrapper.classList.add('call-to-action');
 
         const newElement = document.createElement('a');
+        newElement.onclick = () => {
+            window.trigger('call-to-action', 0.35);
+        };
         newElement.classList.add('hover-shadow-top');
         newElement.id = callToActionButtonId;
         newElement.innerHTML = callToAction.text + ' <b class="call-to-action-keyword">' + callToAction.keyword + '</b>' +
@@ -100,9 +114,6 @@ function addCommunityChatButton() {
     elemDiv.href = '/chat';
     elemDiv.target = '_blank';
     elemDiv.innerHTML = '💬 Community Chat';
-    elemDiv.onclick = function () {
-        trigger('join_chat_action', 0.10);
-    };
 
     const styleSheet = document.createElement('style');
     styleSheet.type = 'text/css';
@@ -121,11 +132,11 @@ function addCommunityChatButton() {
         'font-weight: bold;' +
         'border-top-left-radius: 9px;' +
         'border-top-right-radius: 9px;' +
+        'z-index: 11;' +
         '}' +
         '#fixed-chat-button:hover {' +
         'box-shadow: 2px 2px 13px #ca007c, -2px -1px 14px #ff009e;' +
         'text-decoration: underline;' +
-        'z-index: 10;' +
         '}'
         ;
     document.head.appendChild(styleSheet);

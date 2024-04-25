@@ -77,7 +77,8 @@ export function wrappedKeyCompressionStorage(args) {
       }
       var compressionState = getCompressionStateByRxJsonSchema(params.schema);
       function modifyToStorage(docData) {
-        return compressDocumentData(compressionState, docData);
+        var ret = compressDocumentData(compressionState, docData);
+        return ret;
       }
       function modifyFromStorage(docData) {
         return decompressDocumentData(compressionState, docData);
@@ -95,12 +96,15 @@ export function wrappedKeyCompressionStorage(args) {
         schema: childSchema
       }));
       var wrappedInstance = wrapRxStorageInstance(params.schema, instance, modifyToStorage, modifyFromStorage);
-      var queryBefore = wrappedInstance.query.bind(wrappedInstance);
-      wrappedInstance.query = async preparedQuery => {
-        var compressedQuery = compressQuery(compressionState.table, preparedQuery.query);
-        var compressedPreparedQuery = prepareQuery(compressionState.compressedSchema, compressedQuery);
-        return queryBefore(compressedPreparedQuery);
-      };
+      var overwriteMethods = ['query', 'count'];
+      overwriteMethods.forEach(methodName => {
+        var methodBefore = wrappedInstance[methodName].bind(wrappedInstance);
+        wrappedInstance[methodName] = async preparedQuery => {
+          var compressedQuery = compressQuery(compressionState.table, preparedQuery.query);
+          var compressedPreparedQuery = prepareQuery(compressionState.compressedSchema, compressedQuery);
+          return methodBefore(compressedPreparedQuery);
+        };
+      });
       return wrappedInstance;
     }
   });

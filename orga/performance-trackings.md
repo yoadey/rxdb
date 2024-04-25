@@ -1801,3 +1801,157 @@ LOG LOG: '# CREATE TX pmoyfsfzeo_3'
 LOG LOG: '# CREATE TX sgphpgdqib_0'
 LOG LOG: '# CREATE TX _rxdb_internal'
 LOG LOG: 'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX DONE 11988.700000017881'
+
+
+
+## IndexedDB split wal data
+
+BEFORE:
+{
+    "description": "",
+    "platform": "indexeddb",
+    "collectionsAmount": 4,
+    "docsAmount": 1200,
+    "time-to-first-insert": 1018.05,
+    "insert-documents-1200": 31.95
+}
+
+AFTER (batchSize 20):
+{
+    "description": "",
+    "platform": "indexeddb",
+    "collectionsAmount": 4,
+    "docsAmount": 1200,
+    "time-to-first-insert": 1024.8,
+    "insert-documents-1200": 33.55
+}
+
+AFTER (batchSize 50):
+{
+    "description": "",
+    "platform": "indexeddb",
+    "collectionsAmount": 4,
+    "docsAmount": 1200,
+    "time-to-first-insert": 1025.8,
+    "insert-documents-1200": 28.85
+}
+
+AFTER (batchSize 100):
+{
+    "description": "",
+    "platform": "indexeddb",
+    "collectionsAmount": 4,
+    "docsAmount": 1200,
+    "time-to-first-insert": 1019.8,
+    "insert-documents-1200": 29.15
+}'
+
+AFTER (batchSize 500):
+'{
+    "description": "",
+    "platform": "indexeddb",
+    "collectionsAmount": 4,
+    "docsAmount": 1200,
+    "time-to-first-insert": 1019,
+    "insert-documents-1200": 34.95
+}'
+
+AFTER (batchSize 1000):
+{
+    "description": "",
+    "platform": "indexeddb",
+    "collectionsAmount": 4,
+    "docsAmount": 1200,
+    "time-to-first-insert": 1020,
+    "insert-documents-1200": 32.3
+}'
+
+
+
+## key-compression improvements (feb 2024)
+
+BEFORE:
+
+{
+  "notice": "times are in milliseconds",
+  "createCompressionTable": {
+    "amount": 10000,
+    "total": 87.29935099929571,
+    "perInstance": 0.008729935099929571
+  },
+  "compress": {
+    "amount": 10000,
+    "total": 87.45416999980807,
+    "perObject": 0.008745416999980807
+  },
+  "decompress": {
+    "amount": 10000,
+    "total": 121.86422900017351,
+    "perObject": 0.012186422900017351
+  }
+}
+
+
+AFTER:
+
+{
+  "notice": "times are in milliseconds",
+  "createCompressionTable": {
+    "amount": 10000,
+    "total": 89.79377999994904,
+    "perInstance": 0.008979377999994903
+  },
+  "compress": {
+    "amount": 10000,
+    "total": 81.2287579998374,
+    "perObject": 0.00812287579998374
+  },
+  "decompress": {
+    "amount": 10000,
+    "total": 118.99220599979162,
+    "perObject": 0.011899220599979162
+  }
+}
+
+
+## OPFS in main thread
+
+### WRITES:
+worker thread:
+performanceResult: 43.77
+
+main thread:
+performanceResult: 13.9
+
+
+## find by id
+
+worker thread:
+performanceResult: 44.93
+
+main thread:
+performanceResult: 828.3
+performanceResult: 490.1
+performanceResult: 118.07
+performanceResult: 85
+performanceResult: 66.57
+performanceResult: 38.4
+performanceResult: 29.67
+
+## Query
+worker thread:
+performanceResult: 111.3
+
+main thread:
+
+
+## Faster opfs writes
+
+BEFORE:
+13.6
+13.97
+
+AFTER:
+12.7
+12.63
+11.97

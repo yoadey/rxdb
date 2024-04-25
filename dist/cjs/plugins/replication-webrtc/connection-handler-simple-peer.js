@@ -5,11 +5,13 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.SIMPLE_PEER_PING_INTERVAL = exports.DEFAULT_SIGNALING_SERVER = void 0;
+exports.ensureProcessNextTickIsSet = ensureProcessNextTickIsSet;
 exports.getConnectionHandlerSimplePeer = getConnectionHandlerSimplePeer;
 var _rxjs = require("rxjs");
 var _index = require("../../plugins/utils/index.js");
-var _simplePeer = _interopRequireDefault(require("simple-peer"));
+var _simplepeerMin = _interopRequireDefault(require("simple-peer/simplepeer.min.js"));
 var _rxError = require("../../rx-error.js");
+var Peer = _simplepeerMin.default;
 function sendMessage(ws, msg) {
   ws.send(JSON.stringify(msg));
 }
@@ -24,8 +26,10 @@ var SIMPLE_PEER_PING_INTERVAL = exports.SIMPLE_PEER_PING_INTERVAL = 1000 * 60 * 
 function getConnectionHandlerSimplePeer({
   signalingServerUrl,
   wrtc,
+  config,
   webSocketConstructor
 }) {
+  ensureProcessNextTickIsSet();
   signalingServerUrl = signalingServerUrl ? signalingServerUrl : DEFAULT_SIGNALING_SERVER;
   webSocketConstructor = webSocketConstructor ? webSocketConstructor : WebSocket;
   if (signalingServerUrl.includes(DEFAULT_SIGNALING_SERVER_HOSTNAME) && !defaultServerWarningShown) {
@@ -90,9 +94,10 @@ function getConnectionHandlerSimplePeer({
                */
               var createPeerConnection = function (remotePeerId) {
                 var disconnected = false;
-                var newSimplePeer = new _simplePeer.default({
+                var newSimplePeer = new Peer({
                   initiator: remotePeerId > ownPeerId,
                   wrtc,
+                  config,
                   trickle: true
                 });
                 newSimplePeer.id = (0, _index.randomCouchString)(10);
@@ -181,5 +186,16 @@ function getConnectionHandlerSimplePeer({
     return handler;
   };
   return creator;
+}
+
+/**
+ * Multiple people had problems because it requires to have
+ * the nextTick() method in the runtime. So we check here and
+ * throw a helpful error.
+ */
+function ensureProcessNextTickIsSet() {
+  if (typeof process === 'undefined' || typeof process.nextTick !== 'function') {
+    throw (0, _rxError.newRxError)('RC7');
+  }
 }
 //# sourceMappingURL=connection-handler-simple-peer.js.map

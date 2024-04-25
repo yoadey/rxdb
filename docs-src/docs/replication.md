@@ -8,7 +8,7 @@ slug: replication.html
 The RxDB replication protocol provides the ability to replicate the database state in **realtime** between the clients and the server.
 
 The backend server does not have to be a RxDB instance; you can build a replication with **any infrastructure**.
-For example you can replicate with a custom GraphQL endpoint or a http server on top of a PostgreSQL database.
+For example you can replicate with a custom GraphQL endpoint or a [http server](./replication-http.md) on top of a PostgreSQL database.
 
 The replication is made to support the [Offline-First](http://offlinefirst.org/) paradigm, so that when the client goes offline, the RxDB database can still read and write locally and will continue the replication when the client goes online again.
 
@@ -90,8 +90,8 @@ To use the replication you first have to ensure that:
 
 For example if your documents look like this:
 
-```json
-{
+```ts
+const docData = {
     "id": "foobar",
     "name": "Alice",
     "lastName": "Wilson",
@@ -263,7 +263,7 @@ const replicationState = await replicateRxCollection({
             return {
                 /**
                  * Contains the pulled documents from the remote.
-                 * Notice: If documentsFromRemote.length < batchSize,
+                 * Not that if documentsFromRemote.length < batchSize,
                  * then RxDB assumes that there are no more un-replicated documents
                  * on the backend, so the replication will switch to 'Event observation' mode.
                  */
@@ -300,7 +300,7 @@ const replicationState = await replicateRxCollection({
 /**
  * Creating the pull stream for realtime replication.
  * Here we use a websocket but any other way of sending data to the client can be used,
- * like long polling or server-send events.
+ * like long polling or server-sent events.
  */
 const pullStream$ = new Subject<RxReplicationPullStreamItem<any, any>>();
 let firstOpen = true;
@@ -357,12 +357,6 @@ For better performance, the replication runs only in one instance when RxDB is u
 By setting `waitForLeadership: false` you can enforce that each tab runs its own replication cycles.
 If used in a multi instance setting, so when at database creation `multiInstance: false` was not set,
 you need to import the [leader election plugin](./leader-election.md) so that RxDB can know how many instances exist and which browser tab should run the replication.
-
-
-## Limitations
-
- * At the moment it is not possible to replicate [attachments](./rx-attachment.md), make a pull request if you need this.
-
 
 ## Error handling
 
@@ -434,14 +428,18 @@ Returns a `Promise` that resolves when:
 - All local data is replicated with the remote.
 - No replication cycle is running or in retry-state.
 
-**WARNING:** When `multiInstance: true` and `waitForLeadership: true` and another tab is already running the replication, `awaitInSync()` will not resolve until the other tab is closed and the replication starts in this tab.
+:::warning
+When `multiInstance: true` and `waitForLeadership: true` and another tab is already running the replication, `awaitInSync()` will not resolve until the other tab is closed and the replication starts in this tab.
 
 ```ts
 await myRxReplicationState.awaitInSync();
 ```
+:::
 
 
-### Warning: `awaitInitialReplication()` and `awaitInSync()` should not be used to block the application
+:::warning 
+
+#### `awaitInitialReplication()` and `awaitInSync()` should not be used to block the application
 
 A common mistake in RxDB usage is when developers want to block the app usage until the application is in sync.
 Often they just `await` the promise of `awaitInitialReplication()` or `awaitInSync()` and show a loading spinner until they resolve. This is dangerous and should not be done because:
@@ -473,7 +471,7 @@ await firstValueFrom(
 await hideLoadingSpinner();
 ```
 
-
+:::
 
 
 ### reSync()
@@ -502,6 +500,13 @@ Cancels the replication. Returns a promise that resolved when everything has bee
 await myRxReplicationState.cancel()
 ```
 
+### remove()
+
+Cancels the replication and deletes the metadata of the replication state. This can be used to restart the replication "from scratch". Calling `.remove()` will only delete the replication metadata, it will NOT delete the documents from the collection of the replication.
+
+```ts
+await myRxReplicationState.remove()
+```
 
 ### isStopped()
 
@@ -515,10 +520,6 @@ replicationState.isStopped(); // true/false
 
 By default, the push replication will start from the beginning of time and push all documents from there to the remote.
 By setting a custom `push.initialCheckpoint`, you can tell the replication to only push writes that are newer than the given checkpoint.
-
-This is often used when replication is used together with the [schema migration](./migration-schema.md).
-After a migration has run, the collection with the new version would push all migrated documents to the remote.
-This might not be desired, for example when you already have run the migration on the backend server.
 
 ```ts
 // store the latest checkpoint of a collection
@@ -572,3 +573,13 @@ With this data, the backend can decide onto which attachments must be deleted, a
 
 Accordingly, the pulled document must contain the same data, if the backend has a new document state with updated attachments.
 
+
+## FAQ
+
+<details>
+    <summary>I have infinite loops in my replication, how to debug?</summary>
+    <div>
+    When you have infinite loops in your replication or random re-runs of http requests after some time, the reason is likely that your pull-handler
+    is crashing. The debug this, add a log to the error$ handler to debug it. `myRxReplicationState.error$.subscribe(err => console.log('error$', err))`.
+    </div>
+</details>

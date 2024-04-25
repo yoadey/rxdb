@@ -3,7 +3,7 @@ import _inheritsLoose from "@babel/runtime/helpers/inheritsLoose";
  * this plugin adds the RxCollection.syncGraphQl()-function to rxdb
  * you can use it to sync collections with a remote graphql endpoint.
  */
-import { ensureNotFalsy, getProperty } from "../../plugins/utils/index.js";
+import { ensureNotFalsy, flatClone, getProperty } from "../../plugins/utils/index.js";
 import { graphQLRequest as _graphQLRequest } from "./helper.js";
 import { RxDBLeaderElectionPlugin } from "../leader-election/index.js";
 import { RxReplicationState, startReplicationOnLeaderShip } from "../replication/index.js";
@@ -11,7 +11,6 @@ import { addRxPlugin } from "../../index.js";
 import { removeGraphQLWebSocketRef, getGraphQLWebSocket } from "./graphql-websocket.js";
 import { Subject } from 'rxjs';
 export var RxGraphQLReplicationState = /*#__PURE__*/function (_RxReplicationState) {
-  _inheritsLoose(RxGraphQLReplicationState, _RxReplicationState);
   function RxGraphQLReplicationState(url, clientState, replicationIdentifier, collection, deletedField, pull, push, live, retryTime, autoStart, customFetch) {
     var _this;
     _this = _RxReplicationState.call(this, replicationIdentifier, collection, deletedField, pull, push, live, retryTime, autoStart) || this;
@@ -28,9 +27,10 @@ export var RxGraphQLReplicationState = /*#__PURE__*/function (_RxReplicationStat
     _this.customFetch = customFetch;
     return _this;
   }
+  _inheritsLoose(RxGraphQLReplicationState, _RxReplicationState);
   var _proto = RxGraphQLReplicationState.prototype;
   _proto.setHeaders = function setHeaders(headers) {
-    this.clientState.headers = headers;
+    this.clientState.headers = flatClone(headers);
   };
   _proto.setCredentials = function setCredentials(credentials) {
     this.clientState.credentials = credentials;

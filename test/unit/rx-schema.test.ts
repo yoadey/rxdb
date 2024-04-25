@@ -5,9 +5,11 @@ import {
 } from 'async-test-util';
 import AsyncTestUtil from 'async-test-util';
 
-import config from './config.ts';
-import * as schemas from '../helper/schemas.ts';
-import * as schemaObjects from '../helper/schema-objects.ts';
+import config, { describeParallel } from './config.ts';
+import {
+    schemaObjects,
+    schemas
+} from '../../plugins/test-utils/index.mjs';
 
 import { checkSchema } from '../../plugins/dev-mode/index.mjs';
 
@@ -28,7 +30,7 @@ import {
     ensureNotFalsy
 } from '../../plugins/core/index.mjs';
 
-config.parallel('rx-schema.test.ts', () => {
+describeParallel('rx-schema.test.ts', () => {
     describe('static', () => {
         describe('.getIndexes()', () => {
             it('get single indexes', () => {
@@ -711,7 +713,7 @@ config.parallel('rx-schema.test.ts', () => {
             describe('positive', () => {
                 it('should allow a valid change', () => {
                     const schema = createRxSchema(schemas.human, defaultHashSha256);
-                    const dataBefore = schemaObjects.human();
+                    const dataBefore = schemaObjects.humanData();
                     const dataAfter = clone(dataBefore);
                     dataAfter.age = 100;
 
@@ -721,7 +723,7 @@ config.parallel('rx-schema.test.ts', () => {
             describe('negative', () => {
                 it('should not allow to change the primary', async () => {
                     const schema = createRxSchema(schemas.primaryHuman, defaultHashSha256);
-                    const dataBefore = schemaObjects.human();
+                    const dataBefore = schemaObjects.humanData();
                     const dataAfter = clone(dataBefore);
                     dataAfter.passportId = 'foobar';
 
@@ -733,7 +735,7 @@ config.parallel('rx-schema.test.ts', () => {
                 });
                 it('should not allow to change a final field', async () => {
                     const schema = createRxSchema(schemas.humanFinal, defaultHashSha256);
-                    const dataBefore = schemaObjects.human();
+                    const dataBefore = schemaObjects.humanData();
                     dataBefore.age = 1;
                     const dataAfter = clone(dataBefore);
                     dataAfter.age = 100;
@@ -1161,6 +1163,87 @@ config.parallel('rx-schema.test.ts', () => {
 
             assert.deepStrictEqual(myDocument.tags.hello, tags.hello, 'myDocument.tags.hello');
             assert.deepStrictEqual(myDocument.tags.world, tags.world, 'myDocument.tags.world');
+
+            db.destroy();
+        });
+        /**
+         * Using Infinity as "maximum" does not work
+         * and should throw a proper error.
+         */
+        it('broken on Infinity numbers in index sizes', async () => {
+            const db = await createRxDatabase({
+                name: randomCouchString(10),
+                storage: config.storage.getStorage()
+            });
+
+            const brokenSchemas: RxJsonSchema<any>[] = [
+                {
+                    version: 0,
+                    type: 'object',
+                    primaryKey: 'id',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: 100
+                        },
+                        nr: {
+                            type: 'number',
+                            minimum: -Infinity,
+                            maximum: 100,
+                            multipleOf: 1
+                        }
+                    },
+                    indexes: [
+                        ['nr']
+                    ]
+                },
+                {
+                    version: 0,
+                    type: 'object',
+                    primaryKey: 'id',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: Infinity
+                        }
+                    },
+                    indexes: [
+                        ['nr']
+                    ]
+                },
+                {
+                    version: 0,
+                    type: 'object',
+                    primaryKey: 'id',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: 100
+                        },
+                        nr: {
+                            type: 'number',
+                            minimum: 0,
+                            maximum: Infinity,
+                            multipleOf: 1
+                        }
+                    },
+                    indexes: [
+                        ['nr']
+                    ]
+                }
+            ];
+
+            for (const schema of brokenSchemas) {
+                await assertThrows(
+                    () => db.addCollections({
+                        test: {
+                            schema
+                        }
+                    }),
+                    'RxError',
+                    'SC41'
+                );
+            }
 
             db.destroy();
         });

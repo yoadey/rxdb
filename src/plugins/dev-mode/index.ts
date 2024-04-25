@@ -31,6 +31,15 @@ export * from './check-schema.ts';
 export * from './unallowed-properties.ts';
 export * from './check-query.ts';
 
+let showDevModeWarning = true;
+
+/**
+ * Suppresses the warning message shown in the console, typically invoked once the developer (hello!) 
+ * has acknowledged it.
+ */
+export function disableWarnings() {
+    showDevModeWarning = false;
+}
 
 /**
  * Deep freezes and object when in dev-mode.
@@ -57,7 +66,8 @@ export const RxDBDevModePlugin: RxPlugin = {
     name: DEV_MODE_PLUGIN_NAME,
     rxdb: true,
     init: () => {
-        console.warn(
+        if (showDevModeWarning) {
+            console.warn(
             [
                 '-------------- RxDB dev-mode warning -------------------------------',
                 'you are seeing this because you use the RxDB dev-mode plugin https://rxdb.info/dev-mode.html ',
@@ -67,11 +77,14 @@ export const RxDBDevModePlugin: RxPlugin = {
                 '',
                 '🤗 Hint: To get the most out of RxDB, check out the Premium Plugins',
                 'to get access to faster storages and more professional features: https://rxdb.info/premium',
+                '',
+                'You can disable this warning by calling disableWarnings() from the dev-mode plugin.',
                 // '',
                 // 'Also take part in the RxDB User Survey: https://rxdb.info/survey.html',
                 '---------------------------------------------------------------------'
             ].join('\n')
         );
+        }
     },
     overwritable: {
         isDevMode() {

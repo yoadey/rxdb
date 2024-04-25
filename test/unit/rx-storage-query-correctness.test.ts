@@ -1,6 +1,6 @@
 import assert from 'assert';
 
-import config from './config.ts';
+import config, { describeParallel } from './config.ts';
 import {
     RxJsonSchema,
     randomCouchString,
@@ -17,20 +17,21 @@ import {
     createRxDatabase,
     prepareQuery
 } from '../../plugins/core/index.mjs';
-import { EXAMPLE_REVISION_1 } from '../helper/revisions.ts';
-import * as schemas from '../helper/schemas.ts';
 import {
-    HeroArrayDocumentType,
+    schemaObjects,
+    EXAMPLE_REVISION_1,
+    HumanDocumentType,
     human,
+    schemas,
     nestedHuman,
-    NestedHumanDocumentType,
-    simpleHumanV3,
-    SimpleHumanV3DocumentType
-} from '../helper/schema-objects.ts';
+    humanMinimal,
+    SimpleHeroArrayDocumentType
+} from '../../plugins/test-utils/index.mjs';
 import { wrappedValidateAjvStorage } from '../../plugins/validate-ajv/index.mjs';
+import { HeroArrayDocumentType, NestedHumanDocumentType, SimpleHumanV3DocumentType } from '../../src/plugins/test-utils/schema-objects.ts';
 
 const TEST_CONTEXT = 'rx-storage-query-correctness.test.ts';
-config.parallel('rx-storage-query-correctness.test.ts', () => {
+describeParallel('rx-storage-query-correctness.test.ts', () => {
     type TestCorrectQueriesInput<RxDocType> = {
         notRunIfTrue?: () => boolean;
         testTitle: string;
@@ -200,6 +201,9 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
                     console.dir(queryData);
                     throw err;
                 }
+                const byId = await collection.findByIds(resultFromCollectionIds).exec();
+                resultFromCollectionIds.forEach(id => assert.ok(byId.has(id), 'findById must have same output'));
+
 
                 // Test output of .count()
                 if (
@@ -227,21 +231,21 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
         });
     }
 
-    testCorrectQueries<schemas.HumanDocumentType>({
+    testCorrectQueries<HumanDocumentType>({
         testTitle: '$gt/$gte',
         data: [
-            human('aa', 10, 'alice'),
-            human('bb', 20, 'bob'),
+            schemaObjects.humanData('aa', 10, 'alice'),
+            schemaObjects.humanData('bb', 20, 'bob'),
             /**
              * One must have a longer id
              * because we had many bugs around how padLeft
              * works on custom indexes.
              */
-            human('cc-looong-id', 30, 'carol'),
-            human('dd', 40, 'dave'),
-            human('ee', 50, 'eve')
+            schemaObjects.humanData('cc-looong-id', 30, 'carol'),
+            schemaObjects.humanData('dd', 40, 'dave'),
+            schemaObjects.humanData('ee', 50, 'eve')
         ],
-        schema: withIndexes(schemas.human, [
+        schema: withIndexes(human, [
             ['age'],
             ['age', 'firstName'],
             ['firstName'],
@@ -368,21 +372,21 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
             }
         ]
     });
-    testCorrectQueries<schemas.HumanDocumentType>({
+    testCorrectQueries<HumanDocumentType>({
         testTitle: '$lt/$lte',
         data: [
-            human('aa', 10, 'alice'),
-            human('bb', 20, 'bob'),
+            schemaObjects.humanData('aa', 10, 'alice'),
+            schemaObjects.humanData('bb', 20, 'bob'),
             /**
              * One must have a longer id
              * because we had many bugs around how padLeft
              * works on custom indexes.
              */
-            human('cc-looong-id', 30, 'carol'),
-            human('dd', 40, 'dave'),
-            human('ee', 50, 'eve')
+            schemaObjects.humanData('cc-looong-id', 30, 'carol'),
+            schemaObjects.humanData('dd', 40, 'dave'),
+            schemaObjects.humanData('ee', 50, 'eve')
         ],
-        schema: withIndexes(schemas.human, [
+        schema: withIndexes(human, [
             ['age'],
             ['age', 'firstName'],
             ['firstName'],
@@ -482,21 +486,21 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
     testCorrectQueries<NestedHumanDocumentType>({
         testTitle: 'nested properties',
         data: [
-            nestedHuman({
+            schemaObjects.nestedHumanData({
                 passportId: 'aaa',
                 mainSkill: {
                     level: 6,
                     name: 'zzz'
                 }
             }),
-            nestedHuman({
+            schemaObjects.nestedHumanData({
                 passportId: 'bbb',
                 mainSkill: {
                     level: 4,
                     name: 'ttt'
                 }
             }),
-            nestedHuman({
+            schemaObjects.nestedHumanData({
                 passportId: 'ccc',
                 mainSkill: {
                     level: 3,
@@ -504,7 +508,7 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
                 }
             })
         ],
-        schema: withIndexes(schemas.nestedHuman, [
+        schema: withIndexes(nestedHuman, [
             ['mainSkill.level'],
             ['mainSkill.name']
         ]),
@@ -527,19 +531,19 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
     testCorrectQueries<SimpleHumanV3DocumentType>({
         testTitle: '$or',
         data: [
-            simpleHumanV3({
+            schemaObjects.simpleHumanV3Data({
                 passportId: 'aaa',
                 oneOptional: 'A'
             }),
-            simpleHumanV3({
+            schemaObjects.simpleHumanV3Data({
                 passportId: 'bbb',
                 oneOptional: 'B'
             }),
-            simpleHumanV3({
+            schemaObjects.simpleHumanV3Data({
                 passportId: 'ccc'
             })
         ],
-        schema: withIndexes(schemas.humanMinimal, [
+        schema: withIndexes(humanMinimal, [
         ]),
         queries: [
             {
@@ -614,14 +618,14 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
             }
         ]
     });
-    testCorrectQueries<schemas.HumanDocumentType>({
+    testCorrectQueries<HumanDocumentType>({
         testTitle: '$in',
         data: [
-            human('aa', 10, 'alice'),
-            human('bb', 20, 'bob'),
-            human('cc', 30, 'carol'),
-            human('dd', 40, 'dave'),
-            human('ee', 50, 'eve')
+            schemaObjects.humanData('aa', 10, 'alice'),
+            schemaObjects.humanData('bb', 20, 'bob'),
+            schemaObjects.humanData('cc', 30, 'carol'),
+            schemaObjects.humanData('dd', 40, 'dave'),
+            schemaObjects.humanData('ee', 50, 'eve')
         ],
         schema: schemas.human,
         queries: [
@@ -676,6 +680,58 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
                     }
                 },
                 expectedResultDocIds: ['aa', 'cc', 'ee']
+            }
+        ]
+    });
+    /**
+     * $in must not only work on strings but also on
+     * arrays.
+     */
+    testCorrectQueries<SimpleHeroArrayDocumentType>({
+        testTitle: '$in for array fields named skills',
+        data: [
+            { name: 'alice', skills: ['a', 'b', 'c'] },
+            { name: 'bob', skills: ['c', 'd', 'e'] }
+        ],
+        schema: schemas.simpleArrayHero,
+        queries: [
+            {
+                info: 'get first',
+                query: {
+                    selector: {
+                        skills: {
+                            $in: ['a']
+                        },
+                    }
+                },
+                expectedResultDocIds: [
+                    'alice'
+                ]
+            },
+            {
+                info: 'get by multiple',
+                query: {
+                    selector: {
+                        skills: {
+                            $in: ['c']
+                        },
+                    }
+                },
+                expectedResultDocIds: [
+                    'alice',
+                    'bob'
+                ]
+            },
+            {
+                info: 'get none matching',
+                query: {
+                    selector: {
+                        skills: {
+                            $in: ['aa']
+                        },
+                    }
+                },
+                expectedResultDocIds: []
             }
         ]
     });
@@ -1406,6 +1462,136 @@ config.parallel('rx-storage-query-correctness.test.ts', () => {
                     ]
                 },
                 expectedResultDocIds: ['utarwoqkav', 'zmbznyggnu']
+            },
+        ],
+    });
+
+    testCorrectQueries<{
+        _id: string;
+        name: string;
+        gender: string;
+        age: number;
+    }>({
+        testTitle: 'issue: wrong results using skip and limit',
+        data: [
+            {
+                '_id': 'aaaaaa',
+                'name': 'odvxvubzto',
+                'gender': 'f',
+                'age': 7
+            },
+            {
+                '_id': 'bbbbbb',
+                'name': 'ftudnsnyek',
+                'gender': 'f',
+                'age': 14
+            },
+            {
+                '_id': 'cccccc',
+                'name': 'ollytrnxkr',
+                'gender': 'f',
+                'age': 3
+            },
+            {
+                '_id': 'dddddd',
+                'name': 'sxzsplrctw',
+                'gender': 'f',
+                'age': 15
+            },
+            {
+                '_id': 'eeeeee',
+                'name': 'gwhtwjinib',
+                'gender': 'm',
+                'age': 9
+            }
+        ],
+        schema: {
+            primaryKey: '_id',
+            type: 'object',
+            version: 0,
+            properties: {
+                _id: {
+                    type: 'string',
+                    maxLength: 20
+                },
+                name: {
+                    type: 'string',
+                    maxLength: 20
+                },
+                gender: {
+                    type: 'string',
+                    enum: ['f', 'm', 'x'],
+                    maxLength: 1
+                },
+                age: {
+                    type: 'number',
+                    minimum: 0,
+                    maximum: 100,
+                    multipleOf: 1
+                }
+            },
+            indexes: [
+                [
+                    '_id'
+                ],
+            ]
+        },
+        queries: [
+            {
+                info: 'use skip + limit, expecting no results',
+                query: {
+                    'selector': {
+                        'gender': {
+                            '$eq': 'f'
+                        },
+                        'name': {
+                            '$gt': 'baavgagzmr',
+                            '$lte': 'mzahchkldk'
+                        }
+                    },
+                    'skip': 1,
+                    'limit': 5,
+                    'sort': [
+                        {
+                            'gender': 'asc'
+                        },
+                        {
+                            '_id': 'asc'
+                        }
+                    ],
+                    'index': [
+                        '_id'
+                    ]
+                },
+                expectedResultDocIds: []
+            },
+            {
+                info: 'use skip + limit, expecting one specific result',
+                query: {
+                    'selector': {
+                        'age': {
+                            '$gt': 3
+                        },
+                        'name': {
+                            '$gt': 'enjpqcusiu',
+                            '$lt': 'ircrnmjhkd'
+                        }
+                    },
+                    'skip': 1,
+                    'limit': 9,
+                    'sort': [
+                        {
+                            'gender': 'asc'
+                        },
+                        {
+                            '_id': 'asc'
+                        }
+                    ],
+                    'index': [
+                        '_id'
+                    ]
+                },
+                expectedResultDocIds: ['eeeeee']
             },
         ],
     });
